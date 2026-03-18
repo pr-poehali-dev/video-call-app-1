@@ -1,7 +1,7 @@
 import { useState } from "react";
 import Icon from "@/components/ui/icon";
 
-type Tab = "contacts" | "calls" | "media";
+type Tab = "contacts" | "chats" | "calls" | "media";
 type CallState = "idle" | "active" | "ended";
 
 interface Contact {
@@ -41,6 +41,40 @@ const mediaItems = [
   { id: 8, type: "photo", emoji: "🌸", from: "Екатерина Б.", time: "2 дня" },
 ];
 
+interface Message {
+  id: number;
+  text: string;
+  time: string;
+  own: boolean;
+  type?: "text" | "photo" | "video";
+}
+
+const chatMessages: Record<number, Message[]> = {
+  1: [
+    { id: 1, text: "Привет! Как дела?", time: "14:12", own: false },
+    { id: 2, text: "Привет! Всё отлично, работаю над проектом 🚀", time: "14:13", own: true },
+    { id: 3, text: "Круто! Покажешь потом?", time: "14:14", own: false },
+    { id: 4, text: "Конечно, созвонимся вечером", time: "14:15", own: true },
+    { id: 5, text: "Давай в 19:00 👍", time: "14:15", own: false },
+  ],
+  2: [
+    { id: 1, text: "Отправила фото с поездки!", time: "12:30", own: false, type: "photo" },
+    { id: 2, text: "Вау, красиво! Где это?", time: "12:32", own: true },
+    { id: 3, text: "Это Алтай, рекомендую!", time: "12:33", own: false },
+    { id: 4, text: "Обязательно поеду 🏔️", time: "12:35", own: true },
+  ],
+  3: [
+    { id: 1, text: "Привет, ты на звонке?", time: "11:00", own: true },
+    { id: 2, text: "Да, перезвоню через 10 мин", time: "11:05", own: false },
+    { id: 3, text: "Ок, жду!", time: "11:05", own: true },
+  ],
+  5: [
+    { id: 1, text: "Посмотри видео 👀", time: "10:20", own: false, type: "video" },
+    { id: 2, text: "Классное! Кинь ещё", time: "10:25", own: true },
+    { id: 3, text: "Ловиии 🎬", time: "10:26", own: false, type: "video" },
+  ],
+};
+
 const statusColors: Record<string, string> = {
   online: "bg-emerald-400",
   offline: "bg-gray-500",
@@ -62,6 +96,22 @@ export default function Index() {
   const [activeCaller, setActiveCaller] = useState<Contact | null>(null);
   const [micOn, setMicOn] = useState(true);
   const [camOn, setCamOn] = useState(true);
+  const [openChat, setOpenChat] = useState<Contact | null>(null);
+  const [msgInput, setMsgInput] = useState("");
+  const [localMessages, setLocalMessages] = useState<Record<number, Message[]>>(chatMessages);
+
+  const sendMessage = () => {
+    if (!msgInput.trim() || !openChat) return;
+    const msgs = localMessages[openChat.id] || [];
+    const newMsg: Message = {
+      id: msgs.length + 1,
+      text: msgInput.trim(),
+      time: new Date().toLocaleTimeString("ru-RU", { hour: "2-digit", minute: "2-digit" }),
+      own: true,
+    };
+    setLocalMessages({ ...localMessages, [openChat.id]: [...msgs, newMsg] });
+    setMsgInput("");
+  };
 
   const startCall = (contact: Contact) => {
     setActiveCaller(contact);
@@ -78,6 +128,7 @@ export default function Index() {
 
   const navItems: { id: Tab; icon: string; label: string }[] = [
     { id: "contacts", icon: "Users", label: "Контакты" },
+    { id: "chats", icon: "MessageCircle", label: "Чаты" },
     { id: "calls", icon: "Video", label: "Звонки" },
     { id: "media", icon: "Image", label: "Медиа" },
   ];
@@ -182,6 +233,104 @@ export default function Index() {
         </div>
       )}
 
+      {/* Open Chat Overlay */}
+      {openChat && callState === "idle" && (
+        <div className="fixed inset-0 z-40 flex flex-col" style={{ background: "#0a0812" }}>
+          <div className="absolute inset-0 overflow-hidden pointer-events-none">
+            <div className="orb w-80 h-80 top-[-60px] right-[-60px] opacity-20" style={{ background: "radial-gradient(circle, rgba(168,85,247,0.5) 0%, transparent 70%)" }} />
+            <div className="orb w-60 h-60 bottom-[80px] left-[-40px] opacity-15" style={{ background: "radial-gradient(circle, rgba(236,72,153,0.5) 0%, transparent 70%)" }} />
+          </div>
+
+          {/* Chat header */}
+          <div className="relative z-10 glass-bright border-b border-white/5 px-4 py-3 flex items-center gap-3">
+            <button onClick={() => setOpenChat(null)} className="w-8 h-8 rounded-full glass flex items-center justify-center">
+              <Icon name="ArrowLeft" size={16} className="text-white/70" />
+            </button>
+            <div className={`w-10 h-10 rounded-full bg-gradient-to-br ${avatarGrads[openChat.id % avatarGrads.length]} flex items-center justify-center text-xs font-bold text-white flex-shrink-0`}>
+              {openChat.avatar}
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-semibold text-white truncate">{openChat.name}</p>
+              <div className="flex items-center gap-1.5">
+                <span className={`w-1.5 h-1.5 rounded-full ${statusColors[openChat.status]} ${openChat.status === "online" ? "online-dot" : ""}`} />
+                <span className="text-[11px] text-white/40">
+                  {openChat.status === "online" ? "в сети" : openChat.status === "busy" ? "занят" : "не в сети"}
+                </span>
+              </div>
+            </div>
+            <button onClick={() => startCall(openChat)} className="w-9 h-9 rounded-full btn-gradient flex items-center justify-center">
+              <Icon name="Video" size={16} className="text-white" />
+            </button>
+            <button className="w-9 h-9 rounded-full glass flex items-center justify-center">
+              <Icon name="Phone" size={16} className="text-white/60" />
+            </button>
+          </div>
+
+          {/* Encryption badge */}
+          <div className="relative z-10 flex justify-center py-3">
+            <div className="flex items-center gap-1.5 glass px-3 py-1.5 rounded-full">
+              <Icon name="Lock" size={10} className="text-emerald-400" />
+              <span className="text-[10px] text-emerald-400/80">Сообщения зашифрованы</span>
+            </div>
+          </div>
+
+          {/* Messages */}
+          <div className="relative z-10 flex-1 overflow-y-auto px-4 space-y-2 pb-4">
+            {(localMessages[openChat.id] || []).map((msg, i) => (
+              <div key={msg.id} className={`flex ${msg.own ? "justify-end" : "justify-start"} animate-fade-in`} style={{ animationDelay: `${i * 0.04}s` }}>
+                <div className={`max-w-[75%] px-4 py-2.5 ${msg.own ? "bubble-out" : "bubble-in"}`}>
+                  {msg.type === "photo" && (
+                    <div className="w-full h-24 rounded-xl bg-white/10 flex items-center justify-center mb-2">
+                      <span className="text-2xl">🖼️</span>
+                    </div>
+                  )}
+                  {msg.type === "video" && (
+                    <div className="w-full h-24 rounded-xl bg-white/10 flex items-center justify-center mb-2">
+                      <div className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center">
+                        <Icon name="Play" size={14} className="text-white" />
+                      </div>
+                    </div>
+                  )}
+                  <p className="text-sm text-white leading-relaxed">{msg.text}</p>
+                  <div className={`flex items-center gap-1 mt-1 ${msg.own ? "justify-end" : ""}`}>
+                    <span className="text-[10px] text-white/40">{msg.time}</span>
+                    {msg.own && <Icon name="CheckCheck" size={11} className="text-cyan-400" />}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Input */}
+          <div className="relative z-10 px-4 pb-5 pt-2">
+            <div className="glass-bright rounded-2xl flex items-center gap-2 p-1.5 border border-white/10">
+              <button className="w-9 h-9 rounded-xl glass flex items-center justify-center flex-shrink-0">
+                <Icon name="Paperclip" size={16} className="text-white/40" />
+              </button>
+              <input
+                value={msgInput}
+                onChange={e => setMsgInput(e.target.value)}
+                onKeyDown={e => e.key === "Enter" && sendMessage()}
+                className="flex-1 bg-transparent text-sm text-white placeholder:text-white/30 outline-none py-2"
+                placeholder="Сообщение..."
+              />
+              <button className="w-9 h-9 rounded-xl glass flex items-center justify-center flex-shrink-0">
+                <Icon name="Smile" size={16} className="text-white/40" />
+              </button>
+              {msgInput.trim() ? (
+                <button onClick={sendMessage} className="w-9 h-9 rounded-xl btn-gradient flex items-center justify-center flex-shrink-0">
+                  <Icon name="Send" size={16} className="text-white" />
+                </button>
+              ) : (
+                <button className="w-9 h-9 rounded-xl glass flex items-center justify-center flex-shrink-0">
+                  <Icon name="Mic" size={16} className="text-white/40" />
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Main Content */}
       <main className="relative z-10 flex-1 px-4 pb-28 max-w-lg mx-auto w-full">
 
@@ -200,7 +349,7 @@ export default function Index() {
               <p className="text-xs text-white/40 font-semibold uppercase tracking-wider mb-3 px-1">В сети сейчас</p>
               <div className="flex gap-3 overflow-x-auto pb-2">
                 {contacts.filter(c => c.status === "online").map((c, i) => (
-                  <button key={c.id} onClick={() => startCall(c)} className="flex flex-col items-center gap-1.5 flex-shrink-0 group">
+                  <button key={c.id} onClick={() => { setOpenChat(c); setTab("chats"); }} className="flex flex-col items-center gap-1.5 flex-shrink-0 group">
                     <div className="relative">
                       <div className={`w-14 h-14 rounded-full bg-gradient-to-br ${avatarGrads[i % avatarGrads.length]} flex items-center justify-center text-sm font-bold text-white group-hover:scale-110 transition-transform shadow-lg`}>
                         {c.avatar}
@@ -221,6 +370,7 @@ export default function Index() {
                     key={c.id}
                     className="glass rounded-2xl p-3.5 flex items-center gap-3 hover:glass-bright transition-all cursor-pointer group animate-fade-in"
                     style={{ animationDelay: `${i * 0.06}s` }}
+                    onClick={() => { setOpenChat(c); setTab("chats"); }}
                   >
                     <div className="relative flex-shrink-0">
                       <div className={`w-12 h-12 rounded-full bg-gradient-to-br ${avatarGrads[i % avatarGrads.length]} flex items-center justify-center text-sm font-bold text-white`}>
@@ -236,7 +386,7 @@ export default function Index() {
                       <p className="text-xs text-white/40 truncate mt-0.5">{c.lastMessage}</p>
                     </div>
                     <button
-                      onClick={() => startCall(c)}
+                      onClick={(e) => { e.stopPropagation(); startCall(c); }}
                       className="w-8 h-8 rounded-full btn-gradient flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
                     >
                       <Icon name="Video" size={14} className="text-white" />
@@ -244,6 +394,66 @@ export default function Index() {
                   </div>
                 ))}
               </div>
+            </div>
+          </div>
+        )}
+
+        {/* CHATS TAB */}
+        {tab === "chats" && (
+          <div className="animate-fade-in">
+            <div className="relative mb-4">
+              <Icon name="Search" size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-white/30" />
+              <input
+                className="w-full glass rounded-2xl pl-10 pr-4 py-3 text-sm text-white placeholder:text-white/30 outline-none border border-transparent focus:border-purple-500/50 transition-all"
+                placeholder="Поиск по чатам..."
+              />
+            </div>
+
+            <div className="space-y-2">
+              {contacts.map((c, i) => {
+                const msgs = localMessages[c.id] || [];
+                const lastMsg = msgs[msgs.length - 1];
+                const unread = c.status === "online" && !lastMsg?.own ? 1 : 0;
+                return (
+                  <div
+                    key={c.id}
+                    onClick={() => setOpenChat(c)}
+                    className="glass rounded-2xl p-3.5 flex items-center gap-3 hover:glass-bright transition-all cursor-pointer group animate-fade-in"
+                    style={{ animationDelay: `${i * 0.06}s` }}
+                  >
+                    <div className="relative flex-shrink-0">
+                      <div className={`w-12 h-12 rounded-full bg-gradient-to-br ${avatarGrads[i % avatarGrads.length]} flex items-center justify-center text-sm font-bold text-white`}>
+                        {c.avatar}
+                      </div>
+                      <span className={`absolute bottom-0 right-0 w-3 h-3 rounded-full ${statusColors[c.status]} border-2 border-[#0a0812]`} />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between">
+                        <p className="text-sm font-semibold text-white">{c.name}</p>
+                        <span className="text-[11px] text-white/30">{lastMsg?.time || ""}</span>
+                      </div>
+                      <div className="flex items-center gap-1 mt-0.5">
+                        {lastMsg?.own && <Icon name="CheckCheck" size={11} className="text-cyan-400 flex-shrink-0" />}
+                        <p className="text-xs text-white/40 truncate">
+                          {lastMsg ? (lastMsg.type === "photo" ? "📷 Фото" : lastMsg.type === "video" ? "🎬 Видео" : lastMsg.text) : "Начните диалог"}
+                        </p>
+                      </div>
+                    </div>
+                    {unread > 0 && (
+                      <div className="w-5 h-5 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center flex-shrink-0">
+                        <span className="text-[10px] text-white font-bold">{unread}</span>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+
+            <div className="mt-4 glass rounded-2xl p-3 flex items-center gap-2.5">
+              <div className="w-8 h-8 rounded-lg bg-purple-500/20 flex items-center justify-center flex-shrink-0">
+                <Icon name="Lock" size={14} className="text-purple-400" />
+              </div>
+              <p className="text-[11px] text-white/40">Все сообщения защищены сквозным шифрованием</p>
             </div>
           </div>
         )}
