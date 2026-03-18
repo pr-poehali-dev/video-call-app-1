@@ -134,6 +134,19 @@ export default function Index() {
   const [settingPin, setSettingPin] = useState(false);
   const [newPin, setNewPin] = useState("");
   const [confirmPin, setConfirmPin] = useState("");
+  const [topUpOpen, setTopUpOpen] = useState(false);
+  const [topUpAmount, setTopUpAmount] = useState("");
+  const [topUpCard, setTopUpCard] = useState("");
+  const [topUpExpiry, setTopUpExpiry] = useState("");
+  const [topUpCvv, setTopUpCvv] = useState("");
+  const [topUpSuccess, setTopUpSuccess] = useState(false);
+  const [withdrawOpen, setWithdrawOpen] = useState(false);
+  const [withdrawAmount, setWithdrawAmount] = useState("");
+  const [withdrawCard, setWithdrawCard] = useState("");
+  const [withdrawSuccess, setWithdrawSuccess] = useState(false);
+  const [savedCards, setSavedCards] = useState<{id: number; last4: string; type: string}[]>([
+    { id: 1, last4: "4276", type: "Visa" },
+  ]);
   const [callNotification, setCallNotification] = useState<Message | null>(null);
   const [profileOpen, setProfileOpen] = useState(false);
   const [profileName, setProfileName] = useState("Ваше Имя");
@@ -232,6 +245,76 @@ export default function Index() {
     setNewPin("");
     setConfirmPin("");
     setSettingPin(false);
+  };
+
+  const formatCardNumber = (val: string) => {
+    const digits = val.replace(/\D/g, "").slice(0, 16);
+    return digits.replace(/(.{4})/g, "$1 ").trim();
+  };
+
+  const formatExpiry = (val: string) => {
+    const digits = val.replace(/\D/g, "").slice(0, 4);
+    if (digits.length >= 3) return digits.slice(0, 2) + "/" + digits.slice(2);
+    return digits;
+  };
+
+  const getCardType = (num: string) => {
+    const d = num.replace(/\D/g, "");
+    if (d.startsWith("4")) return "Visa";
+    if (d.startsWith("5")) return "Mastercard";
+    if (d.startsWith("2")) return "МИР";
+    return "Карта";
+  };
+
+  const handleTopUp = () => {
+    const amt = parseFloat(topUpAmount);
+    if (!amt || amt <= 0) return;
+    const cardDigits = topUpCard.replace(/\D/g, "");
+    if (cardDigits.length < 16) return;
+
+    const last4 = cardDigits.slice(-4);
+    const cardType = getCardType(cardDigits);
+    if (!savedCards.find(c => c.last4 === last4)) {
+      setSavedCards(prev => [...prev, { id: Date.now(), last4, type: cardType }]);
+    }
+
+    setWalletBalance(prev => prev + amt);
+    setWalletTxns(prev => [{
+      id: Date.now(), contact: `${cardType} ••${last4}`, avatar: "💳",
+      amount: amt, type: "in", desc: "Пополнение с карты", time: "Только что",
+    }, ...prev]);
+    setTopUpSuccess(true);
+    setTimeout(() => {
+      setTopUpSuccess(false);
+      setTopUpOpen(false);
+      setTopUpAmount("");
+      setTopUpCard("");
+      setTopUpExpiry("");
+      setTopUpCvv("");
+    }, 2000);
+  };
+
+  const handleWithdraw = () => {
+    const amt = parseFloat(withdrawAmount);
+    if (!amt || amt <= 0 || amt > walletBalance) return;
+    const cardDigits = withdrawCard.replace(/\D/g, "");
+    if (cardDigits.length < 16) return;
+
+    const last4 = cardDigits.slice(-4);
+    const cardType = getCardType(cardDigits);
+
+    setWalletBalance(prev => prev - amt);
+    setWalletTxns(prev => [{
+      id: Date.now(), contact: `${cardType} ••${last4}`, avatar: "💳",
+      amount: amt, type: "out", desc: "Вывод на карту", time: "Только что",
+    }, ...prev]);
+    setWithdrawSuccess(true);
+    setTimeout(() => {
+      setWithdrawSuccess(false);
+      setWithdrawOpen(false);
+      setWithdrawAmount("");
+      setWithdrawCard("");
+    }, 2000);
   };
 
   const handleAddContact = () => {
@@ -1207,11 +1290,15 @@ export default function Index() {
                 <div className="flex gap-2 mt-4">
                   <button onClick={() => setSendMoneyOpen(true)} className="flex-1 bg-white/20 backdrop-blur-sm rounded-xl py-2.5 flex items-center justify-center gap-2 hover:bg-white/30 transition-all">
                     <Icon name="Send" size={15} className="text-white" />
-                    <span className="text-xs font-semibold text-white">Отправить</span>
+                    <span className="text-xs font-semibold text-white">Перевод</span>
                   </button>
-                  <button className="flex-1 bg-white/20 backdrop-blur-sm rounded-xl py-2.5 flex items-center justify-center gap-2 hover:bg-white/30 transition-all">
+                  <button onClick={() => setTopUpOpen(true)} className="flex-1 bg-white/20 backdrop-blur-sm rounded-xl py-2.5 flex items-center justify-center gap-2 hover:bg-white/30 transition-all">
                     <Icon name="Download" size={15} className="text-white" />
                     <span className="text-xs font-semibold text-white">Пополнить</span>
+                  </button>
+                  <button onClick={() => setWithdrawOpen(true)} className="flex-1 bg-white/20 backdrop-blur-sm rounded-xl py-2.5 flex items-center justify-center gap-2 hover:bg-white/30 transition-all">
+                    <Icon name="CreditCard" size={15} className="text-white" />
+                    <span className="text-xs font-semibold text-white">Вывод</span>
                   </button>
                 </div>
               </div>
@@ -1357,6 +1444,228 @@ export default function Index() {
               >
                 Сохранить
               </button>
+            </div>
+          </div>
+        )}
+
+        {/* Top Up Modal */}
+        {topUpOpen && (
+          <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 backdrop-blur-sm" onClick={() => { if (!topUpSuccess) { setTopUpOpen(false); setTopUpAmount(""); setTopUpCard(""); setTopUpExpiry(""); setTopUpCvv(""); } }}>
+            <div className="w-full max-w-lg glass-bright rounded-t-3xl p-5 pb-8 animate-fade-in" onClick={e => e.stopPropagation()}>
+              <div className="w-10 h-1 bg-white/20 rounded-full mx-auto mb-5" />
+
+              {topUpSuccess ? (
+                <div className="text-center py-6 animate-fade-in">
+                  <div className="w-16 h-16 rounded-full bg-emerald-500/20 flex items-center justify-center mx-auto mb-4">
+                    <Icon name="Check" size={32} className="text-emerald-400" />
+                  </div>
+                  <p className="text-lg font-bold text-white">Пополнено!</p>
+                  <p className="text-sm text-white/40 mt-1">+{parseFloat(topUpAmount).toLocaleString("ru-RU")} ₽</p>
+                </div>
+              ) : (
+                <>
+                  <h3 className="text-lg font-bold text-white mb-1 flex items-center gap-2">
+                    <Icon name="CreditCard" size={20} className="text-emerald-400" />
+                    Пополнить кошелёк
+                  </h3>
+                  <p className="text-xs text-white/40 mb-5">С банковской карты</p>
+
+                  {savedCards.length > 0 && (
+                    <div className="mb-4">
+                      <p className="text-xs text-white/40 mb-2">Сохранённые карты</p>
+                      <div className="flex gap-2 overflow-x-auto pb-1">
+                        {savedCards.map(card => (
+                          <button
+                            key={card.id}
+                            onClick={() => setTopUpCard(card.last4.padStart(16, "0"))}
+                            className={`glass rounded-xl px-3 py-2 flex items-center gap-2 flex-shrink-0 hover:bg-white/10 transition-all ${topUpCard.replace(/\D/g, "").endsWith(card.last4) ? "border border-purple-500/40" : ""}`}
+                          >
+                            <span className="text-sm">💳</span>
+                            <span className="text-xs text-white/70">{card.type} ••{card.last4}</span>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="mb-3">
+                    <label className="text-xs text-white/40 mb-1.5 block">Номер карты</label>
+                    <input
+                      value={formatCardNumber(topUpCard)}
+                      onChange={e => setTopUpCard(e.target.value)}
+                      className="w-full glass rounded-xl px-4 py-3 text-sm text-white font-mono tracking-wider placeholder:text-white/20 outline-none border border-transparent focus:border-purple-500/50 transition-all"
+                      placeholder="0000 0000 0000 0000"
+                    />
+                    {topUpCard.replace(/\D/g, "").length >= 1 && (
+                      <p className="text-[11px] text-purple-400 mt-1">{getCardType(topUpCard)}</p>
+                    )}
+                  </div>
+
+                  <div className="flex gap-2 mb-3">
+                    <div className="flex-1">
+                      <label className="text-xs text-white/40 mb-1.5 block">Срок</label>
+                      <input
+                        value={formatExpiry(topUpExpiry)}
+                        onChange={e => setTopUpExpiry(e.target.value)}
+                        className="w-full glass rounded-xl px-4 py-3 text-sm text-white font-mono placeholder:text-white/20 outline-none border border-transparent focus:border-purple-500/50 transition-all"
+                        placeholder="MM/ГГ"
+                      />
+                    </div>
+                    <div className="w-24">
+                      <label className="text-xs text-white/40 mb-1.5 block">CVV</label>
+                      <input
+                        type="password"
+                        maxLength={3}
+                        value={topUpCvv}
+                        onChange={e => setTopUpCvv(e.target.value.replace(/\D/g, ""))}
+                        className="w-full glass rounded-xl px-4 py-3 text-sm text-white font-mono text-center placeholder:text-white/20 outline-none border border-transparent focus:border-purple-500/50 transition-all"
+                        placeholder="•••"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="mb-5">
+                    <label className="text-xs text-white/40 mb-1.5 block">Сумма пополнения</label>
+                    <div className="relative">
+                      <input
+                        type="number"
+                        value={topUpAmount}
+                        onChange={e => setTopUpAmount(e.target.value)}
+                        className="w-full glass rounded-xl px-4 py-3 text-xl text-white font-bold placeholder:text-white/20 outline-none border border-transparent focus:border-purple-500/50 transition-all"
+                        placeholder="0"
+                      />
+                      <span className="absolute right-4 top-1/2 -translate-y-1/2 text-white/40 text-sm font-medium">₽</span>
+                    </div>
+                    <div className="flex gap-2 mt-2">
+                      {[500, 1000, 2000, 5000].map(amt => (
+                        <button
+                          key={amt}
+                          onClick={() => setTopUpAmount(String(amt))}
+                          className={`flex-1 glass rounded-lg py-1.5 text-xs text-center transition-all ${topUpAmount === String(amt) ? "text-purple-400 border border-purple-500/30" : "text-white/40 hover:text-white/60"}`}
+                        >
+                          {amt.toLocaleString("ru-RU")}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <button
+                    onClick={handleTopUp}
+                    disabled={!topUpAmount || parseFloat(topUpAmount) <= 0 || topUpCard.replace(/\D/g, "").length < 16 || topUpCvv.length < 3}
+                    className="w-full btn-gradient py-3 rounded-xl text-sm font-semibold text-white disabled:opacity-30 disabled:cursor-not-allowed transition-all"
+                  >
+                    Пополнить {topUpAmount ? `${parseFloat(topUpAmount).toLocaleString("ru-RU")} ₽` : ""}
+                  </button>
+
+                  <div className="flex items-center justify-center gap-1.5 mt-3">
+                    <Icon name="Lock" size={10} className="text-emerald-400" />
+                    <span className="text-[10px] text-white/30">Данные карты защищены шифрованием</span>
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Withdraw Modal */}
+        {withdrawOpen && (
+          <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 backdrop-blur-sm" onClick={() => { if (!withdrawSuccess) { setWithdrawOpen(false); setWithdrawAmount(""); setWithdrawCard(""); } }}>
+            <div className="w-full max-w-lg glass-bright rounded-t-3xl p-5 pb-8 animate-fade-in" onClick={e => e.stopPropagation()}>
+              <div className="w-10 h-1 bg-white/20 rounded-full mx-auto mb-5" />
+
+              {withdrawSuccess ? (
+                <div className="text-center py-6 animate-fade-in">
+                  <div className="w-16 h-16 rounded-full bg-emerald-500/20 flex items-center justify-center mx-auto mb-4">
+                    <Icon name="Check" size={32} className="text-emerald-400" />
+                  </div>
+                  <p className="text-lg font-bold text-white">Отправлено!</p>
+                  <p className="text-sm text-white/40 mt-1">−{parseFloat(withdrawAmount).toLocaleString("ru-RU")} ₽ на карту</p>
+                </div>
+              ) : (
+                <>
+                  <h3 className="text-lg font-bold text-white mb-1 flex items-center gap-2">
+                    <Icon name="ArrowUpRight" size={20} className="text-amber-400" />
+                    Вывод на карту
+                  </h3>
+                  <p className="text-xs text-white/40 mb-5">На банковскую карту</p>
+
+                  {savedCards.length > 0 && (
+                    <div className="mb-4">
+                      <p className="text-xs text-white/40 mb-2">Сохранённые карты</p>
+                      <div className="flex gap-2 overflow-x-auto pb-1">
+                        {savedCards.map(card => (
+                          <button
+                            key={card.id}
+                            onClick={() => setWithdrawCard(card.last4.padStart(16, "0"))}
+                            className={`glass rounded-xl px-3 py-2 flex items-center gap-2 flex-shrink-0 hover:bg-white/10 transition-all ${withdrawCard.replace(/\D/g, "").endsWith(card.last4) ? "border border-purple-500/40" : ""}`}
+                          >
+                            <span className="text-sm">💳</span>
+                            <span className="text-xs text-white/70">{card.type} ••{card.last4}</span>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="mb-3">
+                    <label className="text-xs text-white/40 mb-1.5 block">Номер карты получателя</label>
+                    <input
+                      value={formatCardNumber(withdrawCard)}
+                      onChange={e => setWithdrawCard(e.target.value)}
+                      className="w-full glass rounded-xl px-4 py-3 text-sm text-white font-mono tracking-wider placeholder:text-white/20 outline-none border border-transparent focus:border-purple-500/50 transition-all"
+                      placeholder="0000 0000 0000 0000"
+                    />
+                    {withdrawCard.replace(/\D/g, "").length >= 1 && (
+                      <p className="text-[11px] text-purple-400 mt-1">{getCardType(withdrawCard)}</p>
+                    )}
+                  </div>
+
+                  <div className="mb-5">
+                    <label className="text-xs text-white/40 mb-1.5 block">Сумма вывода</label>
+                    <div className="relative">
+                      <input
+                        type="number"
+                        value={withdrawAmount}
+                        onChange={e => setWithdrawAmount(e.target.value)}
+                        className="w-full glass rounded-xl px-4 py-3 text-xl text-white font-bold placeholder:text-white/20 outline-none border border-transparent focus:border-purple-500/50 transition-all"
+                        placeholder="0"
+                      />
+                      <span className="absolute right-4 top-1/2 -translate-y-1/2 text-white/40 text-sm font-medium">₽</span>
+                    </div>
+                    <p className="text-[11px] text-white/30 mt-1.5">Доступно: {walletBalance.toLocaleString("ru-RU")} ₽</p>
+                    <div className="flex gap-2 mt-2">
+                      {[500, 1000, 2000].map(amt => (
+                        <button
+                          key={amt}
+                          onClick={() => setWithdrawAmount(String(Math.min(amt, walletBalance)))}
+                          className={`flex-1 glass rounded-lg py-1.5 text-xs text-center transition-all ${withdrawAmount === String(amt) ? "text-purple-400 border border-purple-500/30" : "text-white/40 hover:text-white/60"}`}
+                        >
+                          {amt.toLocaleString("ru-RU")}
+                        </button>
+                      ))}
+                      <button
+                        onClick={() => setWithdrawAmount(String(walletBalance))}
+                        className="flex-1 glass rounded-lg py-1.5 text-xs text-center text-white/40 hover:text-white/60 transition-all"
+                      >
+                        Всё
+                      </button>
+                    </div>
+                  </div>
+
+                  <button
+                    onClick={handleWithdraw}
+                    disabled={!withdrawAmount || parseFloat(withdrawAmount) <= 0 || parseFloat(withdrawAmount) > walletBalance || withdrawCard.replace(/\D/g, "").length < 16}
+                    className="w-full btn-gradient py-3 rounded-xl text-sm font-semibold text-white disabled:opacity-30 disabled:cursor-not-allowed transition-all"
+                  >
+                    Вывести {withdrawAmount ? `${parseFloat(withdrawAmount).toLocaleString("ru-RU")} ₽` : ""}
+                  </button>
+
+                  <div className="flex items-center justify-center gap-1.5 mt-3">
+                    <Icon name="Lock" size={10} className="text-emerald-400" />
+                    <span className="text-[10px] text-white/30">Перевод защищён шифрованием</span>
+                  </div>
+                </>
+              )}
             </div>
           </div>
         )}
