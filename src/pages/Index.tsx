@@ -103,6 +103,28 @@ export default function Index() {
   const [callMsgInput, setCallMsgInput] = useState("");
   const [callNotification, setCallNotification] = useState<Message | null>(null);
   const notifTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const audioCtxRef = useRef<AudioContext | null>(null);
+
+  const playNotifSound = () => {
+    try {
+      if (!audioCtxRef.current) {
+        audioCtxRef.current = new AudioContext();
+      }
+      const ctx = audioCtxRef.current;
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.type = "sine";
+      osc.frequency.setValueAtTime(880, ctx.currentTime);
+      osc.frequency.exponentialRampToValueAtTime(1320, ctx.currentTime + 0.08);
+      osc.frequency.exponentialRampToValueAtTime(1100, ctx.currentTime + 0.15);
+      gain.gain.setValueAtTime(0.15, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.25);
+      osc.start(ctx.currentTime);
+      osc.stop(ctx.currentTime + 0.25);
+    } catch (_) { /* audio not supported */ }
+  };
 
   const incomingCallReplies = [
     "Подожди секунду, сейчас покажу 😄",
@@ -132,6 +154,7 @@ export default function Index() {
 
         if (!callChatOpen) {
           setCallNotification(newMsg);
+          playNotifSound();
           setTimeout(() => setCallNotification(null), 4000);
         }
 
