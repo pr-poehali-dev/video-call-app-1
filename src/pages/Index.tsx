@@ -135,6 +135,10 @@ export default function Index() {
   const [profileE2E, setProfileE2E] = useState(true);
   const [editingName, setEditingName] = useState(false);
   const [editingStatus, setEditingStatus] = useState(false);
+  const [addContactOpen, setAddContactOpen] = useState(false);
+  const [newContactName, setNewContactName] = useState("");
+  const [newContactStatus, setNewContactStatus] = useState<"online" | "offline">("online");
+  const [contactsList, setContactsList] = useState<Contact[]>(contacts);
   const notifTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const audioCtxRef = useRef<AudioContext | null>(null);
 
@@ -201,6 +205,31 @@ export default function Index() {
       if (notifTimeoutRef.current) clearTimeout(notifTimeoutRef.current);
     };
   }, [callState, activeCaller?.id]);
+
+  const handleAddContact = () => {
+    const name = newContactName.trim();
+    if (!name) return;
+    const parts = name.split(" ");
+    const avatar = parts.length >= 2
+      ? (parts[0][0] + parts[1][0]).toUpperCase()
+      : name.slice(0, 2).toUpperCase();
+    const newContact: Contact = {
+      id: Date.now(),
+      name,
+      status: newContactStatus,
+      avatar,
+      lastMessage: "Контакт добавлен",
+      lastSeen: "только что",
+    };
+    setContactsList(prev => [newContact, ...prev]);
+    setNewContactName("");
+    setNewContactStatus("online");
+    setAddContactOpen(false);
+  };
+
+  const handleDeleteContact = (id: number) => {
+    setContactsList(prev => prev.filter(c => c.id !== id));
+  };
 
   const handleSendMoney = () => {
     const amt = parseFloat(sendAmount);
@@ -365,7 +394,7 @@ export default function Index() {
             {/* Stats */}
             <div className="grid grid-cols-3 gap-2 mb-5">
               <div className="glass rounded-2xl p-3 text-center">
-                <p className="text-lg font-bold text-white">{contacts.length}</p>
+                <p className="text-lg font-bold text-white">{contactsList.length}</p>
                 <p className="text-[10px] text-white/40 mt-0.5">Контактов</p>
               </div>
               <div className="glass rounded-2xl p-3 text-center">
@@ -734,18 +763,26 @@ export default function Index() {
         {/* CONTACTS TAB */}
         {tab === "contacts" && (
           <div className="animate-fade-in">
-            <div className="relative mb-4">
-              <Icon name="Search" size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-white/30" />
-              <input
-                className="w-full glass rounded-2xl pl-10 pr-4 py-3 text-sm text-white placeholder:text-white/30 outline-none border border-transparent focus:border-purple-500/50 transition-all"
-                placeholder="Поиск контактов..."
-              />
+            <div className="flex gap-2 mb-4">
+              <div className="relative flex-1">
+                <Icon name="Search" size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-white/30" />
+                <input
+                  className="w-full glass rounded-2xl pl-10 pr-4 py-3 text-sm text-white placeholder:text-white/30 outline-none border border-transparent focus:border-purple-500/50 transition-all"
+                  placeholder="Поиск контактов..."
+                />
+              </div>
+              <button
+                onClick={() => setAddContactOpen(true)}
+                className="w-12 h-12 rounded-2xl btn-gradient flex items-center justify-center flex-shrink-0 hover:scale-105 transition-transform"
+              >
+                <Icon name="UserPlus" size={18} className="text-white" />
+              </button>
             </div>
 
             <div className="mb-5">
               <p className="text-xs text-white/40 font-semibold uppercase tracking-wider mb-3 px-1">В сети сейчас</p>
               <div className="flex gap-3 overflow-x-auto pb-2">
-                {contacts.filter(c => c.status === "online").map((c, i) => (
+                {contactsList.filter(c => c.status === "online").map((c, i) => (
                   <button key={c.id} onClick={() => { setOpenChat(c); setTab("chats"); }} className="flex flex-col items-center gap-1.5 flex-shrink-0 group">
                     <div className="relative">
                       <div className={`w-14 h-14 rounded-full bg-gradient-to-br ${avatarGrads[i % avatarGrads.length]} flex items-center justify-center text-sm font-bold text-white group-hover:scale-110 transition-transform shadow-lg`}>
@@ -762,7 +799,7 @@ export default function Index() {
             <div>
               <p className="text-xs text-white/40 font-semibold uppercase tracking-wider mb-3 px-1">Все контакты</p>
               <div className="space-y-2">
-                {contacts.map((c, i) => (
+                {contactsList.map((c, i) => (
                   <div
                     key={c.id}
                     className="glass rounded-2xl p-3.5 flex items-center gap-3 hover:glass-bright transition-all cursor-pointer group animate-fade-in"
@@ -782,15 +819,88 @@ export default function Index() {
                       </div>
                       <p className="text-xs text-white/40 truncate mt-0.5">{c.lastMessage}</p>
                     </div>
-                    <button
-                      onClick={(e) => { e.stopPropagation(); startCall(c); }}
-                      className="w-8 h-8 rounded-full btn-gradient flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
-                    >
-                      <Icon name="Video" size={14} className="text-white" />
-                    </button>
+                    <div className="flex gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <button
+                        onClick={(e) => { e.stopPropagation(); startCall(c); }}
+                        className="w-8 h-8 rounded-full btn-gradient flex items-center justify-center"
+                      >
+                        <Icon name="Video" size={14} className="text-white" />
+                      </button>
+                      <button
+                        onClick={(e) => { e.stopPropagation(); handleDeleteContact(c.id); }}
+                        className="w-8 h-8 rounded-full glass flex items-center justify-center hover:bg-red-500/30 transition-all"
+                      >
+                        <Icon name="Trash2" size={14} className="text-red-400" />
+                      </button>
+                    </div>
                   </div>
                 ))}
               </div>
+            </div>
+          </div>
+        )}
+
+        {/* Add Contact Modal */}
+        {addContactOpen && (
+          <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 backdrop-blur-sm" onClick={() => { setAddContactOpen(false); setNewContactName(""); }}>
+            <div className="w-full max-w-lg glass-bright rounded-t-3xl p-5 pb-8 animate-fade-in" onClick={e => e.stopPropagation()}>
+              <div className="w-10 h-1 bg-white/20 rounded-full mx-auto mb-5" />
+              <h3 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
+                <Icon name="UserPlus" size={20} className="text-purple-400" />
+                Добавить контакт
+              </h3>
+
+              <div className="mb-4">
+                <label className="text-xs text-white/40 mb-1.5 block">Имя и фамилия</label>
+                <input
+                  autoFocus
+                  value={newContactName}
+                  onChange={e => setNewContactName(e.target.value)}
+                  onKeyDown={e => e.key === "Enter" && handleAddContact()}
+                  className="w-full glass rounded-xl px-4 py-3 text-sm text-white placeholder:text-white/25 outline-none border border-transparent focus:border-purple-500/50 transition-all"
+                  placeholder="Например: Иван Сидоров"
+                />
+              </div>
+
+              <div className="mb-5">
+                <label className="text-xs text-white/40 mb-2 block">Статус</label>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => setNewContactStatus("online")}
+                    className={`flex-1 glass rounded-xl py-2.5 flex items-center justify-center gap-2 transition-all ${newContactStatus === "online" ? "border border-emerald-500/40 bg-emerald-500/10" : ""}`}
+                  >
+                    <span className="w-2 h-2 rounded-full bg-emerald-400" />
+                    <span className="text-xs text-white/70">В сети</span>
+                  </button>
+                  <button
+                    onClick={() => setNewContactStatus("offline")}
+                    className={`flex-1 glass rounded-xl py-2.5 flex items-center justify-center gap-2 transition-all ${newContactStatus === "offline" ? "border border-gray-500/40 bg-gray-500/10" : ""}`}
+                  >
+                    <span className="w-2 h-2 rounded-full bg-gray-500" />
+                    <span className="text-xs text-white/70">Не в сети</span>
+                  </button>
+                </div>
+              </div>
+
+              {newContactName.trim() && (
+                <div className="glass rounded-xl p-3 mb-4 flex items-center gap-3 animate-fade-in">
+                  <div className={`w-10 h-10 rounded-full bg-gradient-to-br ${avatarGrads[Math.abs(newContactName.length) % avatarGrads.length]} flex items-center justify-center text-xs font-bold text-white`}>
+                    {newContactName.trim().split(" ").map(w => w[0]).join("").slice(0, 2).toUpperCase()}
+                  </div>
+                  <div>
+                    <p className="text-sm text-white font-medium">{newContactName.trim()}</p>
+                    <p className="text-[11px] text-white/30">Предпросмотр контакта</p>
+                  </div>
+                </div>
+              )}
+
+              <button
+                onClick={handleAddContact}
+                disabled={!newContactName.trim()}
+                className="w-full btn-gradient py-3 rounded-xl text-sm font-semibold text-white disabled:opacity-30 disabled:cursor-not-allowed transition-all"
+              >
+                Добавить
+              </button>
             </div>
           </div>
         )}
@@ -807,7 +917,7 @@ export default function Index() {
             </div>
 
             <div className="space-y-2">
-              {contacts.map((c, i) => {
+              {contactsList.map((c, i) => {
                 const msgs = localMessages[c.id] || [];
                 const lastMsg = msgs[msgs.length - 1];
                 const unread = c.status === "online" && !lastMsg?.own ? 1 : 0;
@@ -886,7 +996,7 @@ export default function Index() {
                   </div>
                   <button
                     onClick={() => {
-                      const c = contacts.find(ct => ct.name === call.name) ?? { id: call.id, name: call.name, avatar: call.avatar, status: "online" as const };
+                      const c = contactsList.find(ct => ct.name === call.name) ?? { id: call.id, name: call.name, avatar: call.avatar, status: "online" as const };
                       startCall(c);
                     }}
                     className="w-9 h-9 rounded-full btn-gradient flex items-center justify-center flex-shrink-0"
@@ -900,7 +1010,7 @@ export default function Index() {
             <div className="glass-bright rounded-2xl p-4 border border-purple-500/20">
               <p className="text-sm text-white/60 text-center mb-3">Позвонить сейчас</p>
               <div className="flex gap-2">
-                {contacts.filter(c => c.status === "online").slice(0, 3).map((c, i) => (
+                {contactsList.filter(c => c.status === "online").slice(0, 3).map((c, i) => (
                   <button key={c.id} onClick={() => startCall(c)} className="flex-1 flex flex-col items-center gap-1.5 glass rounded-xl p-2 hover:bg-white/10 transition-all">
                     <div className={`w-10 h-10 rounded-full bg-gradient-to-br ${avatarGrads[i]} flex items-center justify-center text-xs font-bold text-white`}>
                       {c.avatar}
@@ -1009,7 +1119,7 @@ export default function Index() {
             <div className="mb-5">
               <p className="text-xs text-white/40 font-semibold uppercase tracking-wider mb-3 px-1">Быстрый перевод</p>
               <div className="flex gap-3 overflow-x-auto pb-1">
-                {contacts.filter(c => c.status !== "offline").map((c, i) => (
+                {contactsList.filter(c => c.status !== "offline").map((c, i) => (
                   <button
                     key={c.id}
                     onClick={() => { setSendTo(c); setSendMoneyOpen(true); }}
@@ -1078,7 +1188,7 @@ export default function Index() {
                 <div>
                   <p className="text-xs text-white/40 mb-3">Выберите получателя</p>
                   <div className="space-y-2 max-h-60 overflow-y-auto">
-                    {contacts.map((c, i) => (
+                    {contactsList.map((c, i) => (
                       <button key={c.id} onClick={() => setSendTo(c)} className="w-full glass rounded-xl p-3 flex items-center gap-3 hover:bg-white/10 transition-all">
                         <div className={`w-10 h-10 rounded-full bg-gradient-to-br ${avatarGrads[i % avatarGrads.length]} flex items-center justify-center text-xs font-bold text-white`}>
                           {c.avatar}
