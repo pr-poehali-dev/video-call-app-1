@@ -167,6 +167,11 @@ export default function Index() {
   const [viewingAccountChat, setViewingAccountChat] = useState<number | null>(null);
   const [accountSwitcherOpen, setAccountSwitcherOpen] = useState(false);
   const [activeAccountId, setActiveAccountId] = useState<number | null>(null);
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [adminLoginOpen, setAdminLoginOpen] = useState(false);
+  const [adminPassword, setAdminPassword] = useState("");
+  const [adminError, setAdminError] = useState(false);
+  const ADMIN_CODE = "admin2024";
   const notifTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const audioCtxRef = useRef<AudioContext | null>(null);
 
@@ -341,6 +346,19 @@ export default function Index() {
     return result;
   };
 
+  const handleAdminLogin = () => {
+    if (adminPassword === ADMIN_CODE) {
+      setIsAdmin(true);
+      setAdminLoginOpen(false);
+      setAdminPassword("");
+      setAdminError(false);
+    } else {
+      setAdminError(true);
+      setAdminPassword("");
+      setTimeout(() => setAdminError(false), 2000);
+    }
+  };
+
   const handleAddAccount = () => {
     const name = newAccountName.trim();
     if (!name) return;
@@ -504,7 +522,7 @@ export default function Index() {
                   }
                 </div>
               </button>
-              {linkedAccounts.length > 0 && (
+              {isAdmin && linkedAccounts.length > 0 && (
                 <span className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 border-2 border-[#0a0812] flex items-center justify-center">
                   <span className="text-[7px] text-white font-bold">{linkedAccounts.length + 1}</span>
                 </span>
@@ -527,7 +545,7 @@ export default function Index() {
                       {activeAccountId === null && <Icon name="Check" size={12} className="text-purple-400 flex-shrink-0" />}
                     </button>
 
-                    {linkedAccounts.map((acc, i) => (
+                    {isAdmin && linkedAccounts.map((acc, i) => (
                       <button
                         key={acc.id}
                         onClick={() => { setActiveAccountId(acc.id); setAccountSwitcherOpen(false); }}
@@ -566,6 +584,49 @@ export default function Index() {
       {/* Account switcher backdrop */}
       {accountSwitcherOpen && (
         <div className="fixed inset-0 z-[15]" onClick={() => setAccountSwitcherOpen(false)} />
+      )}
+
+      {/* Admin Login Modal */}
+      {adminLoginOpen && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/70 backdrop-blur-sm" onClick={() => { setAdminLoginOpen(false); setAdminPassword(""); setAdminError(false); }}>
+          <div className="w-full max-w-sm mx-4 glass-bright rounded-3xl p-6 animate-scale-in" onClick={e => e.stopPropagation()}>
+            <div className="text-center mb-5">
+              <div className="w-16 h-16 rounded-full bg-gradient-to-br from-amber-500 to-orange-500 flex items-center justify-center mx-auto mb-4">
+                <Icon name="Shield" size={28} className="text-white" />
+              </div>
+              <h3 className="text-lg font-bold text-white">Вход администратора</h3>
+              <p className="text-xs text-white/40 mt-1">Введите код доступа для управления аккаунтами</p>
+            </div>
+
+            <div className="mb-4">
+              <input
+                autoFocus
+                type="password"
+                value={adminPassword}
+                onChange={e => setAdminPassword(e.target.value)}
+                onKeyDown={e => e.key === "Enter" && handleAdminLogin()}
+                className={`w-full glass rounded-xl px-4 py-3 text-sm text-white text-center tracking-wider placeholder:text-white/20 outline-none border transition-all ${
+                  adminError ? "border-red-500/50 bg-red-500/5" : "border-transparent focus:border-amber-500/50"
+                }`}
+                placeholder="Код доступа"
+              />
+              {adminError && (
+                <p className="text-red-400 text-xs text-center mt-2 animate-fade-in">Неверный код доступа</p>
+              )}
+            </div>
+
+            <button
+              onClick={handleAdminLogin}
+              disabled={!adminPassword.trim()}
+              className="w-full py-3 rounded-xl text-sm font-semibold text-white disabled:opacity-30 disabled:cursor-not-allowed transition-all"
+              style={{ background: "linear-gradient(135deg, #f59e0b, #ea580c)" }}
+            >
+              Войти
+            </button>
+
+            <p className="text-center text-[10px] text-white/20 mt-4">Доступ только для владельца</p>
+          </div>
+        </div>
       )}
 
       {/* Profile Overlay */}
@@ -696,39 +757,63 @@ export default function Index() {
 
               <p className="text-xs text-white/40 font-semibold uppercase tracking-wider mb-2 mt-5 px-1">Связанные аккаунты</p>
 
-              {linkedAccounts.map((acc, i) => (
+              {isAdmin ? (
+                <>
+                  <div className="glass rounded-xl p-2.5 mb-2 flex items-center gap-2 border border-emerald-500/20">
+                    <Icon name="ShieldCheck" size={12} className="text-emerald-400" />
+                    <p className="text-[11px] text-emerald-400/80 flex-1">Режим администратора</p>
+                    <button onClick={() => setIsAdmin(false)} className="text-[10px] text-white/30 hover:text-red-400 transition-colors">Выйти</button>
+                  </div>
+
+                  {linkedAccounts.map((acc, i) => (
+                    <button
+                      key={acc.id}
+                      onClick={() => { setViewingAccount(acc.id); setViewingAccountChat(null); }}
+                      className="glass rounded-2xl p-3.5 flex items-center gap-3 w-full hover:bg-white/5 transition-all mb-1.5"
+                    >
+                      <div className={`w-9 h-9 rounded-full bg-gradient-to-br ${avatarGrads[(i + 2) % avatarGrads.length]} flex items-center justify-center text-xs font-bold text-white`}>
+                        {acc.avatar}
+                      </div>
+                      <div className="flex-1 text-left">
+                        <p className="text-sm text-white font-medium">{acc.name}</p>
+                        <p className="text-[11px] text-white/35">{Object.keys(acc.messages).length} чатов · Подключён</p>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <span className="w-2 h-2 rounded-full bg-emerald-400 online-dot" />
+                        <Icon name="ChevronRight" size={14} className="text-white/20" />
+                      </div>
+                    </button>
+                  ))}
+
+                  <button
+                    onClick={() => setAddAccountOpen(true)}
+                    className="glass rounded-2xl p-3.5 flex items-center gap-3 w-full hover:bg-white/5 transition-all border border-dashed border-white/10"
+                  >
+                    <div className="w-9 h-9 rounded-xl bg-purple-500/20 flex items-center justify-center">
+                      <Icon name="UserPlus" size={16} className="text-purple-400" />
+                    </div>
+                    <div className="flex-1 text-left">
+                      <p className="text-sm text-white font-medium">Добавить аккаунт</p>
+                      <p className="text-[11px] text-white/35">Просмотр переписки</p>
+                    </div>
+                    <Icon name="Plus" size={14} className="text-purple-400" />
+                  </button>
+                </>
+              ) : (
                 <button
-                  key={acc.id}
-                  onClick={() => { setViewingAccount(acc.id); setViewingAccountChat(null); }}
-                  className="glass rounded-2xl p-3.5 flex items-center gap-3 w-full hover:bg-white/5 transition-all mb-1.5"
+                  onClick={() => setAdminLoginOpen(true)}
+                  className="glass rounded-2xl p-3.5 flex items-center gap-3 w-full hover:bg-white/5 transition-all border border-dashed border-white/10"
                 >
-                  <div className={`w-9 h-9 rounded-full bg-gradient-to-br ${avatarGrads[(i + 2) % avatarGrads.length]} flex items-center justify-center text-xs font-bold text-white`}>
-                    {acc.avatar}
+                  <div className="w-9 h-9 rounded-xl bg-amber-500/15 flex items-center justify-center">
+                    <Icon name="KeyRound" size={16} className="text-amber-400" />
                   </div>
                   <div className="flex-1 text-left">
-                    <p className="text-sm text-white font-medium">{acc.name}</p>
-                    <p className="text-[11px] text-white/35">{Object.keys(acc.messages).length} чатов · Подключён</p>
+                    <p className="text-sm text-white font-medium">Войти как администратор</p>
+                    <p className="text-[11px] text-white/35">Управление аккаунтами</p>
                   </div>
-                  <div className="flex items-center gap-1">
-                    <span className="w-2 h-2 rounded-full bg-emerald-400 online-dot" />
-                    <Icon name="ChevronRight" size={14} className="text-white/20" />
-                  </div>
+                  <Icon name="ChevronRight" size={14} className="text-white/20" />
                 </button>
-              ))}
-
-              <button
-                onClick={() => setAddAccountOpen(true)}
-                className="glass rounded-2xl p-3.5 flex items-center gap-3 w-full hover:bg-white/5 transition-all border border-dashed border-white/10"
-              >
-                <div className="w-9 h-9 rounded-xl bg-purple-500/20 flex items-center justify-center">
-                  <Icon name="UserPlus" size={16} className="text-purple-400" />
-                </div>
-                <div className="flex-1 text-left">
-                  <p className="text-sm text-white font-medium">Добавить аккаунт</p>
-                  <p className="text-[11px] text-white/35">Просмотр переписки</p>
-                </div>
-                <Icon name="Plus" size={14} className="text-purple-400" />
-              </button>
+              )}
 
               <p className="text-xs text-white/40 font-semibold uppercase tracking-wider mb-2 mt-5 px-1">Аккаунт</p>
 
