@@ -46,7 +46,8 @@ interface Message {
   text: string;
   time: string;
   own: boolean;
-  type?: "text" | "photo" | "video";
+  type?: "text" | "photo" | "video" | "voice";
+  voiceDuration?: number;
 }
 
 const chatMessages: Record<number, Message[]> = {
@@ -169,6 +170,10 @@ export default function Index() {
   const [activeAccountId, setActiveAccountId] = useState<number | null>(null);
   const [emojiPanelOpen, setEmojiPanelOpen] = useState(false);
   const [emojiCategory, setEmojiCategory] = useState(0);
+  const [isRecording, setIsRecording] = useState(false);
+  const [recordingTime, setRecordingTime] = useState(0);
+  const [playingVoice, setPlayingVoice] = useState<number | null>(null);
+  const recordingRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
   const [adminLoginOpen, setAdminLoginOpen] = useState(false);
   const [adminPassword, setAdminPassword] = useState("");
@@ -355,6 +360,54 @@ export default function Index() {
       ]);
     });
     return result;
+  };
+
+  const startRecording = () => {
+    setIsRecording(true);
+    setRecordingTime(0);
+    setEmojiPanelOpen(false);
+    recordingRef.current = setInterval(() => {
+      setRecordingTime(prev => prev + 1);
+    }, 1000);
+  };
+
+  const stopRecording = () => {
+    if (recordingRef.current) clearInterval(recordingRef.current);
+    setIsRecording(false);
+    if (recordingTime < 1) { setRecordingTime(0); return; }
+    if (!openChat) { setRecordingTime(0); return; }
+    const duration = recordingTime;
+    const newMsg: Message = {
+      id: Date.now(),
+      text: "Голосовое сообщение",
+      time: new Date().toLocaleTimeString("ru-RU", { hour: "2-digit", minute: "2-digit" }),
+      own: true,
+      type: "voice",
+      voiceDuration: duration,
+    };
+    setLocalMessages(prev => ({ ...prev, [openChat.id]: [...(prev[openChat.id] || []), newMsg] }));
+    setRecordingTime(0);
+  };
+
+  const cancelRecording = () => {
+    if (recordingRef.current) clearInterval(recordingRef.current);
+    setIsRecording(false);
+    setRecordingTime(0);
+  };
+
+  const formatDuration = (s: number) => {
+    const m = Math.floor(s / 60);
+    const sec = s % 60;
+    return `${m}:${String(sec).padStart(2, "0")}`;
+  };
+
+  const togglePlayVoice = (msgId: number, duration: number) => {
+    if (playingVoice === msgId) {
+      setPlayingVoice(null);
+      return;
+    }
+    setPlayingVoice(msgId);
+    setTimeout(() => setPlayingVoice(null), duration * 1000);
   };
 
   const handleAdminLogin = () => {
@@ -1246,7 +1299,34 @@ export default function Index() {
                       </div>
                     </div>
                   )}
-                  <p className="text-sm text-white leading-relaxed">{msg.text}</p>
+                  {msg.type === "voice" ? (
+                    <div className="flex items-center gap-2.5 min-w-[160px]">
+                      <button
+                        onClick={() => togglePlayVoice(msg.id, msg.voiceDuration || 3)}
+                        className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 transition-all ${playingVoice === msg.id ? "bg-white/30" : "bg-white/15"}`}
+                      >
+                        <Icon name={playingVoice === msg.id ? "Pause" : "Play"} size={14} className="text-white" />
+                      </button>
+                      <div className="flex-1">
+                        <div className="flex gap-[2px] items-end h-4">
+                          {Array.from({ length: 20 }, (_, j) => {
+                            const h = Math.sin(j * 0.8 + (msg.id % 5)) * 0.5 + 0.5;
+                            const isActive = playingVoice === msg.id;
+                            return (
+                              <div
+                                key={j}
+                                className={`flex-1 rounded-full transition-all ${isActive ? "bg-white/80" : "bg-white/30"}`}
+                                style={{ height: `${4 + h * 12}px`, animationDelay: isActive ? `${j * 30}ms` : undefined }}
+                              />
+                            );
+                          })}
+                        </div>
+                        <p className="text-[10px] text-white/40 mt-1">{formatDuration(msg.voiceDuration || 0)}</p>
+                      </div>
+                    </div>
+                  ) : (
+                    <p className="text-sm text-white leading-relaxed">{msg.text}</p>
+                  )}
                   <div className={`flex items-center gap-1 mt-1 ${msg.own ? "justify-end" : ""}`}>
                     <span className="text-[10px] text-white/40">{msg.time}</span>
                     {msg.own && <Icon name="CheckCheck" size={11} className="text-cyan-400" />}
@@ -1289,33 +1369,68 @@ export default function Index() {
 
           {/* Input */}
           <div className="relative z-10 px-4 pb-5 pt-2">
-            <div className="glass-bright rounded-2xl flex items-center gap-2 p-1.5 border border-white/10">
-              <button className="w-9 h-9 rounded-xl glass flex items-center justify-center flex-shrink-0">
-                <Icon name="Paperclip" size={16} className="text-white/40" />
-              </button>
-              <input
-                value={msgInput}
-                onChange={e => setMsgInput(e.target.value)}
-                onKeyDown={e => e.key === "Enter" && sendMessage()}
-                className="flex-1 bg-transparent text-sm text-white placeholder:text-white/30 outline-none py-2"
-                placeholder="Сообщение..."
-              />
-              <button
-                onClick={() => setEmojiPanelOpen(!emojiPanelOpen)}
-                className={`w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 transition-all ${emojiPanelOpen ? "bg-purple-500/30 border border-purple-500/30" : "glass"}`}
-              >
-                <Icon name="Smile" size={16} className={emojiPanelOpen ? "text-purple-400" : "text-white/40"} />
-              </button>
-              {msgInput.trim() ? (
-                <button onClick={() => { sendMessage(); setEmojiPanelOpen(false); }} className="w-9 h-9 rounded-xl btn-gradient flex items-center justify-center flex-shrink-0">
+            {isRecording ? (
+              <div className="glass-bright rounded-2xl flex items-center gap-2 p-1.5 border border-red-500/20 animate-fade-in">
+                <button
+                  onClick={cancelRecording}
+                  className="w-9 h-9 rounded-xl glass flex items-center justify-center flex-shrink-0 hover:bg-red-500/20 transition-all"
+                >
+                  <Icon name="Trash2" size={16} className="text-red-400" />
+                </button>
+                <div className="flex-1 flex items-center gap-2.5">
+                  <span className="w-2.5 h-2.5 rounded-full bg-red-500 online-dot flex-shrink-0" />
+                  <div className="flex gap-[2px] items-center flex-1 h-6">
+                    {Array.from({ length: 24 }, (_, j) => (
+                      <div
+                        key={j}
+                        className="flex-1 bg-red-400/60 rounded-full transition-all"
+                        style={{
+                          height: `${4 + Math.sin(j * 0.7 + recordingTime * 2) * 8 + Math.random() * 4}px`,
+                        }}
+                      />
+                    ))}
+                  </div>
+                  <span className="text-xs text-red-400 font-mono flex-shrink-0 w-10 text-right">{formatDuration(recordingTime)}</span>
+                </div>
+                <button
+                  onClick={stopRecording}
+                  className="w-9 h-9 rounded-xl btn-gradient flex items-center justify-center flex-shrink-0"
+                >
                   <Icon name="Send" size={16} className="text-white" />
                 </button>
-              ) : (
+              </div>
+            ) : (
+              <div className="glass-bright rounded-2xl flex items-center gap-2 p-1.5 border border-white/10">
                 <button className="w-9 h-9 rounded-xl glass flex items-center justify-center flex-shrink-0">
-                  <Icon name="Mic" size={16} className="text-white/40" />
+                  <Icon name="Paperclip" size={16} className="text-white/40" />
                 </button>
-              )}
-            </div>
+                <input
+                  value={msgInput}
+                  onChange={e => setMsgInput(e.target.value)}
+                  onKeyDown={e => e.key === "Enter" && sendMessage()}
+                  className="flex-1 bg-transparent text-sm text-white placeholder:text-white/30 outline-none py-2"
+                  placeholder="Сообщение..."
+                />
+                <button
+                  onClick={() => setEmojiPanelOpen(!emojiPanelOpen)}
+                  className={`w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 transition-all ${emojiPanelOpen ? "bg-purple-500/30 border border-purple-500/30" : "glass"}`}
+                >
+                  <Icon name="Smile" size={16} className={emojiPanelOpen ? "text-purple-400" : "text-white/40"} />
+                </button>
+                {msgInput.trim() ? (
+                  <button onClick={() => { sendMessage(); setEmojiPanelOpen(false); }} className="w-9 h-9 rounded-xl btn-gradient flex items-center justify-center flex-shrink-0">
+                    <Icon name="Send" size={16} className="text-white" />
+                  </button>
+                ) : (
+                  <button
+                    onClick={startRecording}
+                    className="w-9 h-9 rounded-xl glass flex items-center justify-center flex-shrink-0 hover:bg-red-500/20 transition-all group"
+                  >
+                    <Icon name="Mic" size={16} className="text-white/40 group-hover:text-red-400 transition-colors" />
+                  </button>
+                )}
+              </div>
+            )}
           </div>
         </div>
       )}
