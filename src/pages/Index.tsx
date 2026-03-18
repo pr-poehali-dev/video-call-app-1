@@ -167,11 +167,22 @@ export default function Index() {
   const [viewingAccountChat, setViewingAccountChat] = useState<number | null>(null);
   const [accountSwitcherOpen, setAccountSwitcherOpen] = useState(false);
   const [activeAccountId, setActiveAccountId] = useState<number | null>(null);
+  const [emojiPanelOpen, setEmojiPanelOpen] = useState(false);
+  const [emojiCategory, setEmojiCategory] = useState(0);
   const [isAdmin, setIsAdmin] = useState(false);
   const [adminLoginOpen, setAdminLoginOpen] = useState(false);
   const [adminPassword, setAdminPassword] = useState("");
   const [adminError, setAdminError] = useState(false);
   const ADMIN_CODE = "admin2024";
+
+  const emojiSets = [
+    { label: "😀", name: "Смайлы", emojis: ["😀","😃","😄","😁","😆","🥹","😅","🤣","😂","🙂","😉","😊","😇","🥰","😍","🤩","😘","😗","😚","😙","🥲","😋","😛","😜","🤪","😝","🤑","🤗","🤭","🫢","🫣","🤫","🤔","🫡","🤐","🤨","😐","😑","😶","🫥","😏","😒","🙄","😬","😮‍💨","🤥","😌","😔","😪","🤤","😴","😷"] },
+    { label: "❤️", name: "Любовь", emojis: ["❤️","🧡","💛","💚","💙","💜","🖤","🤍","🤎","💕","💞","💓","💗","💖","💘","💝","💟","❣️","💔","♥️","🫶","💑","💏","😻","😽","😘","🥰","😍","🤩","💋","👄","🌹","🌷","💐","🎀","💌"] },
+    { label: "👋", name: "Жесты", emojis: ["👋","🤚","🖐️","✋","🖖","🫱","🫲","🫳","🫴","👌","🤌","🤏","✌️","🤞","🫰","🤟","🤘","🤙","👈","👉","👆","🖕","👇","☝️","🫵","👍","👎","✊","👊","🤛","🤜","👏","🙌","🫶","👐","🤲","🤝","🙏","💪"] },
+    { label: "🎉", name: "Праздник", emojis: ["🎉","🎊","🎈","🎁","🎀","🎂","🍰","🧁","🥂","🍾","🎆","🎇","✨","🎯","🏆","🥇","🎵","🎶","🎸","🎤","🪩","🎭","🎪","🎬","📸","🎮","🕹️","🎲","🃏","🎰"] },
+    { label: "🐱", name: "Животные", emojis: ["🐱","🐶","🐭","🐹","🐰","🦊","🐻","🐼","🐨","🐯","🦁","🐮","🐷","🐸","🐵","🐔","🐧","🐦","🦅","🦆","🦉","🦇","🐺","🐗","🐴","🦄","🐝","🐛","🦋","🐌","🐞","🐢","🐍","🦎","🐙","🐠","🐬","🐳","🦈"] },
+    { label: "🍕", name: "Еда", emojis: ["🍕","🍔","🍟","🌭","🍿","🧂","🥚","🍳","🧇","🥞","🧈","🥐","🍞","🥖","🥨","🧀","🥗","🥙","🌮","🌯","🫔","🍝","🍜","🍲","🍛","🍣","🍱","🥟","🍤","🍙","🍚","🍘","🍢","🍡","🍧","🍨","🍦","🥧","🍰","🧁","🍫","🍬","🍭","🍮","☕","🍵","🧋","🥤","🍺","🍷"] },
+  ];
   const notifTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const audioCtxRef = useRef<AudioContext | null>(null);
 
@@ -1187,7 +1198,7 @@ export default function Index() {
 
           {/* Chat header */}
           <div className="relative z-10 glass-bright border-b border-white/5 px-4 py-3 flex items-center gap-3">
-            <button onClick={() => setOpenChat(null)} className="w-8 h-8 rounded-full glass flex items-center justify-center">
+            <button onClick={() => { setOpenChat(null); setEmojiPanelOpen(false); }} className="w-8 h-8 rounded-full glass flex items-center justify-center">
               <Icon name="ArrowLeft" size={16} className="text-white/70" />
             </button>
             <div className={`w-10 h-10 rounded-full bg-gradient-to-br ${avatarGrads[openChat.id % avatarGrads.length]} flex items-center justify-center text-xs font-bold text-white flex-shrink-0`}>
@@ -1245,6 +1256,37 @@ export default function Index() {
             ))}
           </div>
 
+          {/* Emoji Panel */}
+          {emojiPanelOpen && (
+            <div className="relative z-10 border-t border-white/5 glass-bright animate-fade-in">
+              <div className="flex gap-1 px-3 pt-2 pb-1 border-b border-white/5 overflow-x-auto">
+                {emojiSets.map((set, i) => (
+                  <button
+                    key={i}
+                    onClick={() => setEmojiCategory(i)}
+                    className={`px-2.5 py-1.5 rounded-lg text-sm flex-shrink-0 transition-all ${emojiCategory === i ? "bg-purple-500/20 border border-purple-500/30" : "hover:bg-white/5"}`}
+                  >
+                    {set.label}
+                  </button>
+                ))}
+              </div>
+              <div className="p-2 h-44 overflow-y-auto">
+                <p className="text-[10px] text-white/30 font-semibold px-1 mb-1.5">{emojiSets[emojiCategory].name}</p>
+                <div className="grid grid-cols-8 gap-0.5">
+                  {emojiSets[emojiCategory].emojis.map((emoji, i) => (
+                    <button
+                      key={i}
+                      onClick={() => { setMsgInput(prev => prev + emoji); }}
+                      className="w-full aspect-square rounded-lg flex items-center justify-center text-xl hover:bg-white/10 active:scale-90 transition-all"
+                    >
+                      {emoji}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Input */}
           <div className="relative z-10 px-4 pb-5 pt-2">
             <div className="glass-bright rounded-2xl flex items-center gap-2 p-1.5 border border-white/10">
@@ -1258,11 +1300,14 @@ export default function Index() {
                 className="flex-1 bg-transparent text-sm text-white placeholder:text-white/30 outline-none py-2"
                 placeholder="Сообщение..."
               />
-              <button className="w-9 h-9 rounded-xl glass flex items-center justify-center flex-shrink-0">
-                <Icon name="Smile" size={16} className="text-white/40" />
+              <button
+                onClick={() => setEmojiPanelOpen(!emojiPanelOpen)}
+                className={`w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 transition-all ${emojiPanelOpen ? "bg-purple-500/30 border border-purple-500/30" : "glass"}`}
+              >
+                <Icon name="Smile" size={16} className={emojiPanelOpen ? "text-purple-400" : "text-white/40"} />
               </button>
               {msgInput.trim() ? (
-                <button onClick={sendMessage} className="w-9 h-9 rounded-xl btn-gradient flex items-center justify-center flex-shrink-0">
+                <button onClick={() => { sendMessage(); setEmojiPanelOpen(false); }} className="w-9 h-9 rounded-xl btn-gradient flex items-center justify-center flex-shrink-0">
                   <Icon name="Send" size={16} className="text-white" />
                 </button>
               ) : (
