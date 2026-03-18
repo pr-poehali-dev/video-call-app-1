@@ -99,6 +99,8 @@ export default function Index() {
   const [openChat, setOpenChat] = useState<Contact | null>(null);
   const [msgInput, setMsgInput] = useState("");
   const [localMessages, setLocalMessages] = useState<Record<number, Message[]>>(chatMessages);
+  const [callChatOpen, setCallChatOpen] = useState(false);
+  const [callMsgInput, setCallMsgInput] = useState("");
 
   const sendMessage = () => {
     if (!msgInput.trim() || !openChat) return;
@@ -113,6 +115,19 @@ export default function Index() {
     setMsgInput("");
   };
 
+  const sendCallMessage = () => {
+    if (!callMsgInput.trim() || !activeCaller) return;
+    const msgs = localMessages[activeCaller.id] || [];
+    const newMsg: Message = {
+      id: msgs.length + 1,
+      text: callMsgInput.trim(),
+      time: new Date().toLocaleTimeString("ru-RU", { hour: "2-digit", minute: "2-digit" }),
+      own: true,
+    };
+    setLocalMessages({ ...localMessages, [activeCaller.id]: [...msgs, newMsg] });
+    setCallMsgInput("");
+  };
+
   const startCall = (contact: Contact) => {
     setActiveCaller(contact);
     setCallState("active");
@@ -120,6 +135,8 @@ export default function Index() {
 
   const endCall = () => {
     setCallState("ended");
+    setCallChatOpen(false);
+    setCallMsgInput("");
     setTimeout(() => {
       setCallState("idle");
       setActiveCaller(null);
@@ -170,8 +187,10 @@ export default function Index() {
             <div className="orb w-[500px] h-[500px] top-[-100px] left-[-100px] opacity-40" style={{ background: "radial-gradient(circle, rgba(168,85,247,0.5) 0%, transparent 70%)" }} />
             <div className="orb w-[400px] h-[400px] bottom-[-100px] right-[-100px] opacity-30" style={{ background: "radial-gradient(circle, rgba(236,72,153,0.5) 0%, transparent 70%)" }} />
           </div>
-          <div className="relative flex-1 flex flex-col items-center justify-center gap-6 z-10">
-            <div className="text-center animate-fade-in">
+
+          {/* Video area */}
+          <div className={`relative flex-1 flex flex-col items-center justify-center gap-6 z-10 transition-all duration-300 ${callChatOpen ? "pb-0" : ""}`}>
+            <div className={`text-center animate-fade-in transition-all duration-300 ${callChatOpen ? "scale-75 -translate-y-4" : ""}`}>
               <div className="float inline-block mb-4">
                 <div className={`w-32 h-32 rounded-full bg-gradient-to-br ${avatarGrads[activeCaller.id % avatarGrads.length]} flex items-center justify-center text-3xl font-black text-white shadow-2xl ring-pulse`}>
                   {activeCaller.avatar}
@@ -190,11 +209,65 @@ export default function Index() {
                 <p className="text-white/30 text-[10px]">Вы</p>
               </div>
             </div>
-            <div className="flex items-center gap-2 glass px-4 py-2 rounded-full">
-              <Icon name="Lock" size={12} className="text-emerald-400" />
-              <span className="text-xs text-emerald-400 font-medium">E2E шифрование активно</span>
+            {!callChatOpen && (
+              <div className="flex items-center gap-2 glass px-4 py-2 rounded-full animate-fade-in">
+                <Icon name="Lock" size={12} className="text-emerald-400" />
+                <span className="text-xs text-emerald-400 font-medium">E2E шифрование активно</span>
+              </div>
+            )}
+          </div>
+
+          {/* In-call chat panel */}
+          <div className={`relative z-10 transition-all duration-300 ease-out overflow-hidden ${callChatOpen ? "max-h-[45vh] opacity-100" : "max-h-0 opacity-0"}`}>
+            <div className="glass-bright border-t border-white/10 flex flex-col" style={{ height: "45vh" }}>
+              <div className="flex items-center justify-between px-4 py-2.5 border-b border-white/5">
+                <div className="flex items-center gap-2">
+                  <Icon name="MessageCircle" size={14} className="text-purple-400" />
+                  <span className="text-xs font-semibold text-white/70">Чат с {activeCaller.name.split(" ")[0]}</span>
+                </div>
+                <button onClick={() => setCallChatOpen(false)} className="w-7 h-7 rounded-full glass flex items-center justify-center">
+                  <Icon name="X" size={13} className="text-white/50" />
+                </button>
+              </div>
+
+              <div className="flex-1 overflow-y-auto px-4 py-3 space-y-2">
+                {(localMessages[activeCaller.id] || []).map((msg, i) => (
+                  <div key={msg.id} className={`flex ${msg.own ? "justify-end" : "justify-start"} animate-fade-in`} style={{ animationDelay: `${i * 0.03}s` }}>
+                    <div className={`max-w-[80%] px-3 py-2 ${msg.own ? "bubble-out" : "bubble-in"}`}>
+                      <p className="text-xs text-white leading-relaxed">{msg.text}</p>
+                      <div className={`flex items-center gap-1 mt-0.5 ${msg.own ? "justify-end" : ""}`}>
+                        <span className="text-[9px] text-white/35">{msg.time}</span>
+                        {msg.own && <Icon name="CheckCheck" size={9} className="text-cyan-400" />}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              <div className="px-3 pb-3 pt-1">
+                <div className="glass rounded-xl flex items-center gap-2 p-1">
+                  <input
+                    value={callMsgInput}
+                    onChange={e => setCallMsgInput(e.target.value)}
+                    onKeyDown={e => e.key === "Enter" && sendCallMessage()}
+                    className="flex-1 bg-transparent text-xs text-white placeholder:text-white/25 outline-none py-2 px-2"
+                    placeholder="Написать..."
+                  />
+                  {callMsgInput.trim() ? (
+                    <button onClick={sendCallMessage} className="w-7 h-7 rounded-lg btn-gradient flex items-center justify-center flex-shrink-0">
+                      <Icon name="Send" size={12} className="text-white" />
+                    </button>
+                  ) : (
+                    <button className="w-7 h-7 rounded-lg glass flex items-center justify-center flex-shrink-0">
+                      <Icon name="Smile" size={12} className="text-white/30" />
+                    </button>
+                  )}
+                </div>
+              </div>
             </div>
           </div>
+
+          {/* Call Controls */}
           <div className="relative z-10 pb-10 px-6">
             <div className="flex items-center justify-center gap-4">
               <button
@@ -202,6 +275,12 @@ export default function Index() {
                 className={`w-14 h-14 rounded-full flex items-center justify-center transition-all ${micOn ? "glass-bright" : "bg-red-500/80"}`}
               >
                 <Icon name={micOn ? "Mic" : "MicOff"} size={22} className="text-white" />
+              </button>
+              <button
+                onClick={() => setCallChatOpen(!callChatOpen)}
+                className={`w-14 h-14 rounded-full flex items-center justify-center transition-all ${callChatOpen ? "bg-purple-500/60 border border-purple-400/40" : "glass-bright"}`}
+              >
+                <Icon name="MessageCircle" size={22} className="text-white" />
               </button>
               <button
                 onClick={endCall}
