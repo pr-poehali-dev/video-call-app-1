@@ -160,6 +160,11 @@ export default function Index() {
   const [newContactName, setNewContactName] = useState("");
   const [newContactStatus, setNewContactStatus] = useState<"online" | "offline">("online");
   const [contactsList, setContactsList] = useState<Contact[]>(contacts);
+  const [linkedAccounts, setLinkedAccounts] = useState<{id: number; name: string; avatar: string; messages: Record<number, Message[]>}[]>([]);
+  const [addAccountOpen, setAddAccountOpen] = useState(false);
+  const [newAccountName, setNewAccountName] = useState("");
+  const [viewingAccount, setViewingAccount] = useState<number | null>(null);
+  const [viewingAccountChat, setViewingAccountChat] = useState<number | null>(null);
   const notifTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const audioCtxRef = useRef<AudioContext | null>(null);
 
@@ -315,6 +320,48 @@ export default function Index() {
       setWithdrawAmount("");
       setWithdrawCard("");
     }, 2000);
+  };
+
+  const generateFakeMessages = (ownerName: string): Record<number, Message[]> => {
+    const phrases = [
+      ["Привет!", "Как дела?", "Давно не виделись"],
+      ["Всё хорошо, спасибо!", "Работаю 💪", "Скоро увидимся"],
+      ["Завтра свободен?", "Может погуляем?", "Скинь адрес"],
+      ["Ок, договорились!", "Буду в 15:00", "Жду!"],
+    ];
+    const result: Record<number, Message[]> = {};
+    contacts.slice(0, 4).forEach((c, ci) => {
+      result[c.id] = phrases[ci].flatMap((text, i) => [
+        { id: i * 2 + 1, text, time: `${10 + ci}:${String(i * 12 + 5).padStart(2, "0")}`, own: false },
+        { id: i * 2 + 2, text: phrases[(ci + 1) % 4][i] || "👍", time: `${10 + ci}:${String(i * 12 + 8).padStart(2, "0")}`, own: true },
+      ]);
+    });
+    return result;
+  };
+
+  const handleAddAccount = () => {
+    const name = newAccountName.trim();
+    if (!name) return;
+    const parts = name.split(" ");
+    const avatar = parts.length >= 2
+      ? (parts[0][0] + parts[1][0]).toUpperCase()
+      : name.slice(0, 2).toUpperCase();
+    setLinkedAccounts(prev => [...prev, {
+      id: Date.now(),
+      name,
+      avatar,
+      messages: generateFakeMessages(name),
+    }]);
+    setNewAccountName("");
+    setAddAccountOpen(false);
+  };
+
+  const handleRemoveAccount = (id: number) => {
+    setLinkedAccounts(prev => prev.filter(a => a.id !== id));
+    if (viewingAccount === id) {
+      setViewingAccount(null);
+      setViewingAccountChat(null);
+    }
   };
 
   const handleAddContact = () => {
@@ -567,6 +614,42 @@ export default function Index() {
                 </button>
               </div>
 
+              <p className="text-xs text-white/40 font-semibold uppercase tracking-wider mb-2 mt-5 px-1">Связанные аккаунты</p>
+
+              {linkedAccounts.map((acc, i) => (
+                <button
+                  key={acc.id}
+                  onClick={() => { setViewingAccount(acc.id); setViewingAccountChat(null); }}
+                  className="glass rounded-2xl p-3.5 flex items-center gap-3 w-full hover:bg-white/5 transition-all mb-1.5"
+                >
+                  <div className={`w-9 h-9 rounded-full bg-gradient-to-br ${avatarGrads[(i + 2) % avatarGrads.length]} flex items-center justify-center text-xs font-bold text-white`}>
+                    {acc.avatar}
+                  </div>
+                  <div className="flex-1 text-left">
+                    <p className="text-sm text-white font-medium">{acc.name}</p>
+                    <p className="text-[11px] text-white/35">{Object.keys(acc.messages).length} чатов · Подключён</p>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <span className="w-2 h-2 rounded-full bg-emerald-400 online-dot" />
+                    <Icon name="ChevronRight" size={14} className="text-white/20" />
+                  </div>
+                </button>
+              ))}
+
+              <button
+                onClick={() => setAddAccountOpen(true)}
+                className="glass rounded-2xl p-3.5 flex items-center gap-3 w-full hover:bg-white/5 transition-all border border-dashed border-white/10"
+              >
+                <div className="w-9 h-9 rounded-xl bg-purple-500/20 flex items-center justify-center">
+                  <Icon name="UserPlus" size={16} className="text-purple-400" />
+                </div>
+                <div className="flex-1 text-left">
+                  <p className="text-sm text-white font-medium">Добавить аккаунт</p>
+                  <p className="text-[11px] text-white/35">Просмотр переписки</p>
+                </div>
+                <Icon name="Plus" size={14} className="text-purple-400" />
+              </button>
+
               <p className="text-xs text-white/40 font-semibold uppercase tracking-wider mb-2 mt-5 px-1">Аккаунт</p>
 
               <button className="glass rounded-2xl p-3.5 flex items-center gap-3 w-full hover:bg-white/5 transition-all">
@@ -614,6 +697,165 @@ export default function Index() {
           </div>
         </div>
       )}
+
+      {/* Add Account Modal */}
+      {addAccountOpen && (
+        <div className="fixed inset-0 z-[60] flex items-end justify-center bg-black/60 backdrop-blur-sm" onClick={() => { setAddAccountOpen(false); setNewAccountName(""); }}>
+          <div className="w-full max-w-lg glass-bright rounded-t-3xl p-5 pb-8 animate-fade-in" onClick={e => e.stopPropagation()}>
+            <div className="w-10 h-1 bg-white/20 rounded-full mx-auto mb-5" />
+            <h3 className="text-lg font-bold text-white mb-1 flex items-center gap-2">
+              <Icon name="UserPlus" size={20} className="text-purple-400" />
+              Добавить аккаунт
+            </h3>
+            <p className="text-xs text-white/40 mb-5">Введите имя для отслеживания переписки</p>
+
+            <div className="mb-4">
+              <label className="text-xs text-white/40 mb-1.5 block">Имя аккаунта</label>
+              <input
+                autoFocus
+                value={newAccountName}
+                onChange={e => setNewAccountName(e.target.value)}
+                onKeyDown={e => e.key === "Enter" && handleAddAccount()}
+                className="w-full glass rounded-xl px-4 py-3 text-sm text-white placeholder:text-white/25 outline-none border border-transparent focus:border-purple-500/50 transition-all"
+                placeholder="Имя и фамилия"
+              />
+            </div>
+
+            {newAccountName.trim() && (
+              <div className="glass rounded-xl p-3 mb-4 flex items-center gap-3 animate-fade-in">
+                <div className={`w-10 h-10 rounded-full bg-gradient-to-br ${avatarGrads[Math.abs(newAccountName.length) % avatarGrads.length]} flex items-center justify-center text-xs font-bold text-white`}>
+                  {newAccountName.trim().split(" ").map(w => w[0]).join("").slice(0, 2).toUpperCase()}
+                </div>
+                <div>
+                  <p className="text-sm text-white font-medium">{newAccountName.trim()}</p>
+                  <p className="text-[11px] text-white/30">Будет привязан к профилю</p>
+                </div>
+              </div>
+            )}
+
+            <div className="glass rounded-xl p-3 mb-5 flex items-center gap-2.5">
+              <Icon name="ShieldAlert" size={14} className="text-amber-400 flex-shrink-0" />
+              <p className="text-[11px] text-white/40">Вы сможете видеть переписку этого аккаунта. Данные зашифрованы.</p>
+            </div>
+
+            <button
+              onClick={handleAddAccount}
+              disabled={!newAccountName.trim()}
+              className="w-full btn-gradient py-3 rounded-xl text-sm font-semibold text-white disabled:opacity-30 disabled:cursor-not-allowed transition-all"
+            >
+              Привязать аккаунт
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Viewing Linked Account Overlay */}
+      {viewingAccount !== null && (() => {
+        const acc = linkedAccounts.find(a => a.id === viewingAccount);
+        if (!acc) return null;
+        const viewingChat = viewingAccountChat !== null ? contacts.find(c => c.id === viewingAccountChat) : null;
+        const chatMsgs = viewingAccountChat !== null ? (acc.messages[viewingAccountChat] || []) : [];
+
+        return (
+          <div className="fixed inset-0 z-[55] flex flex-col" style={{ background: "#0a0812" }}>
+            <div className="absolute inset-0 overflow-hidden pointer-events-none">
+              <div className="orb w-80 h-80 top-[-60px] right-[-60px] opacity-20" style={{ background: "radial-gradient(circle, rgba(236,72,153,0.5) 0%, transparent 70%)" }} />
+            </div>
+
+            {/* Header */}
+            <div className="relative z-10 glass-bright border-b border-white/5 px-4 py-3 flex items-center gap-3">
+              <button onClick={() => { if (viewingAccountChat !== null) { setViewingAccountChat(null); } else { setViewingAccount(null); } }} className="w-8 h-8 rounded-full glass flex items-center justify-center">
+                <Icon name="ArrowLeft" size={16} className="text-white/70" />
+              </button>
+              {viewingChat ? (
+                <>
+                  <div className={`w-9 h-9 rounded-full bg-gradient-to-br ${avatarGrads[viewingChat.id % avatarGrads.length]} flex items-center justify-center text-xs font-bold text-white`}>
+                    {viewingChat.avatar}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-semibold text-white truncate">{viewingChat.name}</p>
+                    <p className="text-[11px] text-white/30">Переписка от {acc.name}</p>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className={`w-9 h-9 rounded-full bg-gradient-to-br ${avatarGrads[(linkedAccounts.indexOf(acc) + 2) % avatarGrads.length]} flex items-center justify-center text-xs font-bold text-white`}>
+                    {acc.avatar}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-semibold text-white">{acc.name}</p>
+                    <p className="text-[11px] text-white/30">Связанный аккаунт</p>
+                  </div>
+                  <button onClick={() => handleRemoveAccount(acc.id)} className="w-8 h-8 rounded-full glass flex items-center justify-center hover:bg-red-500/20 transition-all">
+                    <Icon name="Trash2" size={14} className="text-red-400" />
+                  </button>
+                </>
+              )}
+            </div>
+
+            {/* View mode badge */}
+            <div className="relative z-10 flex justify-center py-2.5">
+              <div className="flex items-center gap-1.5 glass px-3 py-1.5 rounded-full">
+                <Icon name="Eye" size={10} className="text-amber-400" />
+                <span className="text-[10px] text-amber-400/80">Режим просмотра</span>
+              </div>
+            </div>
+
+            {/* Content */}
+            <div className="relative z-10 flex-1 overflow-y-auto px-4 pb-6">
+              {viewingChat ? (
+                <div className="space-y-2 pt-2">
+                  {chatMsgs.map((msg, i) => (
+                    <div key={msg.id} className={`flex ${msg.own ? "justify-end" : "justify-start"} animate-fade-in`} style={{ animationDelay: `${i * 0.04}s` }}>
+                      <div className={`max-w-[75%] px-4 py-2.5 ${msg.own ? "bubble-out" : "bubble-in"}`}>
+                        <p className="text-sm text-white leading-relaxed">{msg.text}</p>
+                        <div className={`flex items-center gap-1 mt-1 ${msg.own ? "justify-end" : ""}`}>
+                          <span className="text-[10px] text-white/40">{msg.time}</span>
+                          {msg.own && <Icon name="CheckCheck" size={11} className="text-cyan-400" />}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="space-y-2 pt-2">
+                  <p className="text-xs text-white/40 font-semibold uppercase tracking-wider mb-3 px-1">Переписки аккаунта</p>
+                  {contacts.slice(0, 4).map((c, i) => {
+                    const msgs = acc.messages[c.id] || [];
+                    const lastMsg = msgs[msgs.length - 1];
+                    return (
+                      <button
+                        key={c.id}
+                        onClick={() => setViewingAccountChat(c.id)}
+                        className="glass rounded-2xl p-3.5 flex items-center gap-3 w-full hover:glass-bright transition-all animate-fade-in"
+                        style={{ animationDelay: `${i * 0.06}s` }}
+                      >
+                        <div className="relative flex-shrink-0">
+                          <div className={`w-12 h-12 rounded-full bg-gradient-to-br ${avatarGrads[i % avatarGrads.length]} flex items-center justify-center text-sm font-bold text-white`}>
+                            {c.avatar}
+                          </div>
+                          <span className={`absolute bottom-0 right-0 w-3 h-3 rounded-full ${statusColors[c.status]} border-2 border-[#0a0812]`} />
+                        </div>
+                        <div className="flex-1 min-w-0 text-left">
+                          <div className="flex items-center justify-between">
+                            <p className="text-sm font-semibold text-white">{c.name}</p>
+                            <span className="text-[11px] text-white/30">{lastMsg?.time || ""}</span>
+                          </div>
+                          <p className="text-xs text-white/40 truncate mt-0.5">{lastMsg?.text || "Нет сообщений"}</p>
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <span className="text-[10px] text-white/20">{msgs.length}</span>
+                          <Icon name="ChevronRight" size={14} className="text-white/20" />
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          </div>
+        );
+      })()}
 
       {/* Active Call Overlay */}
       {callState === "active" && activeCaller && (
