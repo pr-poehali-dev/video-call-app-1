@@ -170,6 +170,11 @@ export default function Index() {
   const [activeAccountId, setActiveAccountId] = useState<number | null>(null);
   const [emojiPanelOpen, setEmojiPanelOpen] = useState(false);
   const [emojiCategory, setEmojiCategory] = useState(0);
+  const [stickerShopOpen, setStickerShopOpen] = useState(false);
+  const [stickerTab, setStickerTab] = useState<"stickers" | "emoji">("emoji");
+  const [ownedPacks, setOwnedPacks] = useState<Record<string, { until: string; plan: string }>>({});
+  const [buyingPack, setBuyingPack] = useState<string | null>(null);
+  const [adminRevenue, setAdminRevenue] = useState(0);
   const [isRecording, setIsRecording] = useState(false);
   const [recordingTime, setRecordingTime] = useState(0);
   const [playingVoice, setPlayingVoice] = useState<number | null>(null);
@@ -360,6 +365,36 @@ export default function Index() {
       ]);
     });
     return result;
+  };
+
+  const stickerPacks = [
+    { id: "cute-cats", name: "Милые котики", preview: "😺😸😻😽🙀😿😾😹😼🐱", stickers: ["😺","😸","😻","😽","🙀","😿","😾","😹","😼","🐱","🐈","🐈‍⬛","🦁","🐯","🐅"], color: "from-amber-500 to-orange-500" },
+    { id: "cool-faces", name: "Дерзкие лица", preview: "😎🤑🥸🤠🥳🫠🤯🥶🥵😈", stickers: ["😎","🤑","🥸","🤠","🥳","🫠","🤯","🥶","🥵","😈","👿","🤡","👻","💀","☠️"], color: "from-purple-500 to-blue-500" },
+    { id: "love-pack", name: "Любовь Deluxe", preview: "💘💝💖💗💓💞💕💟❣️❤️‍🔥", stickers: ["💘","💝","💖","💗","💓","💞","💕","💟","❣️","❤️‍🔥","❤️‍🩹","💋","🫶","🥰","😍"], color: "from-pink-500 to-rose-500" },
+    { id: "party-vip", name: "Вечеринка VIP", preview: "🪩🎭🎪🎢🎡🎠🎰🎲🕹️🎮", stickers: ["🪩","🎭","🎪","🎢","🎡","🎠","🎰","🎲","🕹️","🎮","🎯","🎳","🎸","🥁","🎺"], color: "from-cyan-500 to-emerald-500" },
+    { id: "food-gourmet", name: "Гурман PRO", preview: "🍣🍱🥘🫕🍲🥗🧆🥙🌮🌯", stickers: ["🍣","🍱","🥘","🫕","🍲","🥗","🧆","🥙","🌮","🌯","🫔","🥟","🦞","🦐","🦑"], color: "from-orange-500 to-red-500" },
+    { id: "space-pack", name: "Космос", preview: "🚀🛸👽🌌🪐⭐🌙☄️🛰️🌍", stickers: ["🚀","🛸","👽","🌌","🪐","⭐","🌙","☄️","🛰️","🌍","🌎","🌏","🔭","👨‍🚀","👩‍🚀"], color: "from-indigo-500 to-violet-500" },
+  ];
+
+  const handleBuyStickerPack = (packId: string, plan: "month" | "year") => {
+    const price = plan === "month" ? 100 : 700;
+    if (walletBalance < price) return;
+    const until = new Date();
+    if (plan === "month") until.setMonth(until.getMonth() + 1);
+    else until.setFullYear(until.getFullYear() + 1);
+    setWalletBalance(prev => prev - price);
+    setAdminRevenue(prev => prev + price);
+    setOwnedPacks(prev => ({ ...prev, [packId]: { until: until.toLocaleDateString("ru-RU"), plan: plan === "month" ? "Месяц" : "Год" } }));
+    setWalletTxns(prev => [{
+      id: Date.now(),
+      contact: "ConnectX Store",
+      avatar: "🎨",
+      amount: price,
+      type: "out",
+      desc: `Стикеры: ${stickerPacks.find(p => p.id === packId)?.name || packId}`,
+      time: "Только что",
+    }, ...prev]);
+    setBuyingPack(null);
   };
 
   const startRecording = () => {
@@ -828,6 +863,18 @@ export default function Index() {
                     <p className="text-[11px] text-emerald-400/80 flex-1">Режим администратора</p>
                     <button onClick={() => setIsAdmin(false)} className="text-[10px] text-white/30 hover:text-red-400 transition-colors">Выйти</button>
                   </div>
+
+                  {adminRevenue > 0 && (
+                    <div className="glass rounded-xl p-3 mb-2 border border-amber-500/20">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <Icon name="TrendingUp" size={12} className="text-amber-400" />
+                          <p className="text-[11px] text-white/60">Доход от стикеров</p>
+                        </div>
+                        <p className="text-sm font-bold text-amber-400">{adminRevenue.toLocaleString("ru-RU")} ₽</p>
+                      </div>
+                    </div>
+                  )}
 
                   {linkedAccounts.map((acc, i) => (
                     <button
@@ -1336,34 +1383,172 @@ export default function Index() {
             ))}
           </div>
 
-          {/* Emoji Panel */}
+          {/* Emoji / Sticker Panel */}
           {emojiPanelOpen && (
             <div className="relative z-10 border-t border-white/5 glass-bright animate-fade-in">
-              <div className="flex gap-1 px-3 pt-2 pb-1 border-b border-white/5 overflow-x-auto">
-                {emojiSets.map((set, i) => (
+              {/* Tabs: Emoji / Stickers */}
+              <div className="flex border-b border-white/5">
+                <button
+                  onClick={() => setStickerTab("emoji")}
+                  className={`flex-1 py-2 text-xs font-semibold text-center transition-all ${stickerTab === "emoji" ? "text-purple-400 border-b-2 border-purple-500" : "text-white/40"}`}
+                >
+                  Эмодзи
+                </button>
+                <button
+                  onClick={() => setStickerTab("stickers")}
+                  className={`flex-1 py-2 text-xs font-semibold text-center transition-all ${stickerTab === "stickers" ? "text-purple-400 border-b-2 border-purple-500" : "text-white/40"}`}
+                >
+                  Стикеры ✨
+                </button>
+              </div>
+
+              {stickerTab === "emoji" && (
+                <>
+                  <div className="flex gap-1 px-3 pt-2 pb-1 border-b border-white/5 overflow-x-auto">
+                    {emojiSets.map((set, i) => (
+                      <button
+                        key={i}
+                        onClick={() => setEmojiCategory(i)}
+                        className={`px-2.5 py-1.5 rounded-lg text-sm flex-shrink-0 transition-all ${emojiCategory === i ? "bg-purple-500/20 border border-purple-500/30" : "hover:bg-white/5"}`}
+                      >
+                        {set.label}
+                      </button>
+                    ))}
+                  </div>
+                  <div className="p-2 h-44 overflow-y-auto">
+                    <p className="text-[10px] text-white/30 font-semibold px-1 mb-1.5">{emojiSets[emojiCategory].name}</p>
+                    <div className="grid grid-cols-8 gap-0.5">
+                      {emojiSets[emojiCategory].emojis.map((emoji, i) => (
+                        <button
+                          key={i}
+                          onClick={() => { setMsgInput(prev => prev + emoji); }}
+                          className="w-full aspect-square rounded-lg flex items-center justify-center text-xl hover:bg-white/10 active:scale-90 transition-all"
+                        >
+                          {emoji}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </>
+              )}
+
+              {stickerTab === "stickers" && !stickerShopOpen && (
+                <div className="p-2 h-52 overflow-y-auto">
+                  {/* Owned sticker packs */}
+                  {Object.keys(ownedPacks).length > 0 && (
+                    <>
+                      <p className="text-[10px] text-white/30 font-semibold px-1 mb-1.5">Мои стикеры</p>
+                      {stickerPacks.filter(p => ownedPacks[p.id]).map(pack => (
+                        <div key={pack.id} className="mb-3">
+                          <p className="text-[10px] text-purple-400 px-1 mb-1">{pack.name}</p>
+                          <div className="grid grid-cols-5 gap-1">
+                            {pack.stickers.map((s, i) => (
+                              <button
+                                key={i}
+                                onClick={() => { setMsgInput(prev => prev + s); }}
+                                className="aspect-square rounded-xl flex items-center justify-center text-2xl hover:bg-white/10 active:scale-90 transition-all glass"
+                              >
+                                {s}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      ))}
+                    </>
+                  )}
+                  {Object.keys(ownedPacks).length === 0 && (
+                    <div className="flex flex-col items-center justify-center h-full text-center py-4">
+                      <span className="text-3xl mb-2">🎨</span>
+                      <p className="text-sm text-white/60 font-medium">У вас пока нет стикеров</p>
+                      <p className="text-xs text-white/30 mt-1">Откройте магазин и выберите набор</p>
+                    </div>
+                  )}
                   <button
-                    key={i}
-                    onClick={() => setEmojiCategory(i)}
-                    className={`px-2.5 py-1.5 rounded-lg text-sm flex-shrink-0 transition-all ${emojiCategory === i ? "bg-purple-500/20 border border-purple-500/30" : "hover:bg-white/5"}`}
+                    onClick={() => setStickerShopOpen(true)}
+                    className="w-full glass rounded-xl py-2.5 flex items-center justify-center gap-2 hover:bg-white/10 transition-all mt-2 border border-dashed border-purple-500/20"
                   >
-                    {set.label}
+                    <Icon name="ShoppingBag" size={14} className="text-purple-400" />
+                    <span className="text-xs text-purple-400 font-medium">Магазин стикеров</span>
                   </button>
-                ))}
-              </div>
-              <div className="p-2 h-44 overflow-y-auto">
-                <p className="text-[10px] text-white/30 font-semibold px-1 mb-1.5">{emojiSets[emojiCategory].name}</p>
-                <div className="grid grid-cols-8 gap-0.5">
-                  {emojiSets[emojiCategory].emojis.map((emoji, i) => (
-                    <button
-                      key={i}
-                      onClick={() => { setMsgInput(prev => prev + emoji); }}
-                      className="w-full aspect-square rounded-lg flex items-center justify-center text-xl hover:bg-white/10 active:scale-90 transition-all"
-                    >
-                      {emoji}
-                    </button>
-                  ))}
                 </div>
-              </div>
+              )}
+
+              {stickerTab === "stickers" && stickerShopOpen && !buyingPack && (
+                <div className="p-2 h-52 overflow-y-auto">
+                  <div className="flex items-center justify-between px-1 mb-2">
+                    <button onClick={() => setStickerShopOpen(false)} className="flex items-center gap-1 text-white/40 hover:text-white/60 transition-colors">
+                      <Icon name="ArrowLeft" size={12} />
+                      <span className="text-[10px]">Назад</span>
+                    </button>
+                    <p className="text-[10px] text-white/30 font-semibold">Магазин стикеров</p>
+                  </div>
+                  <div className="space-y-1.5">
+                    {stickerPacks.map(pack => {
+                      const owned = ownedPacks[pack.id];
+                      return (
+                        <button
+                          key={pack.id}
+                          onClick={() => !owned && setBuyingPack(pack.id)}
+                          className={`w-full glass rounded-xl p-2.5 flex items-center gap-2.5 transition-all ${owned ? "opacity-70" : "hover:bg-white/10"}`}
+                        >
+                          <div className={`w-10 h-10 rounded-lg bg-gradient-to-br ${pack.color} flex items-center justify-center text-lg flex-shrink-0`}>
+                            {pack.stickers[0]}
+                          </div>
+                          <div className="flex-1 text-left min-w-0">
+                            <p className="text-xs font-semibold text-white truncate">{pack.name}</p>
+                            <p className="text-[10px] text-white/30 truncate">{pack.stickers.slice(0, 6).join("")}</p>
+                          </div>
+                          {owned ? (
+                            <span className="text-[10px] text-emerald-400 flex-shrink-0">✓ до {owned.until}</span>
+                          ) : (
+                            <span className="text-[10px] text-purple-400 font-semibold flex-shrink-0">от 100 ₽</span>
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {stickerTab === "stickers" && stickerShopOpen && buyingPack && (() => {
+                const pack = stickerPacks.find(p => p.id === buyingPack);
+                if (!pack) return null;
+                return (
+                  <div className="p-3 h-52 overflow-y-auto">
+                    <button onClick={() => setBuyingPack(null)} className="flex items-center gap-1 text-white/40 hover:text-white/60 transition-colors mb-3">
+                      <Icon name="ArrowLeft" size={12} />
+                      <span className="text-[10px]">Назад</span>
+                    </button>
+                    <div className="text-center mb-3">
+                      <div className={`w-14 h-14 rounded-xl bg-gradient-to-br ${pack.color} flex items-center justify-center text-2xl mx-auto mb-2`}>
+                        {pack.stickers[0]}
+                      </div>
+                      <p className="text-sm font-bold text-white">{pack.name}</p>
+                      <p className="text-[10px] text-white/30 mt-0.5">{pack.stickers.length} стикеров</p>
+                    </div>
+                    <div className="flex gap-2 mb-2">
+                      <button
+                        onClick={() => handleBuyStickerPack(pack.id, "month")}
+                        disabled={walletBalance < 100}
+                        className="flex-1 glass rounded-xl p-2.5 text-center hover:bg-white/10 transition-all border border-purple-500/20 disabled:opacity-30"
+                      >
+                        <p className="text-sm font-bold text-white">100 ₽</p>
+                        <p className="text-[9px] text-white/40">на месяц</p>
+                      </button>
+                      <button
+                        onClick={() => handleBuyStickerPack(pack.id, "year")}
+                        disabled={walletBalance < 700}
+                        className="flex-1 glass rounded-xl p-2.5 text-center hover:bg-white/10 transition-all border border-emerald-500/20 relative overflow-hidden disabled:opacity-30"
+                      >
+                        <div className="absolute top-0 right-0 bg-emerald-500 text-[7px] text-white font-bold px-1.5 py-0.5 rounded-bl-lg">-42%</div>
+                        <p className="text-sm font-bold text-white">700 ₽</p>
+                        <p className="text-[9px] text-white/40">на год</p>
+                      </button>
+                    </div>
+                    <p className="text-[9px] text-white/20 text-center">Баланс: {walletBalance.toLocaleString("ru-RU")} ₽</p>
+                  </div>
+                );
+              })()}
             </div>
           )}
 
