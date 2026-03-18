@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import Icon from "@/components/ui/icon";
 
-type Tab = "contacts" | "chats" | "calls" | "media";
+type Tab = "contacts" | "chats" | "calls" | "media" | "wallet";
 type CallState = "idle" | "active" | "ended";
 
 interface Contact {
@@ -75,6 +75,25 @@ const chatMessages: Record<number, Message[]> = {
   ],
 };
 
+interface Transaction {
+  id: number;
+  contact: string;
+  avatar: string;
+  amount: number;
+  type: "in" | "out";
+  desc: string;
+  time: string;
+}
+
+const transactions: Transaction[] = [
+  { id: 1, contact: "Алексей Петров", avatar: "АП", amount: 500, type: "in", desc: "За обед", time: "Сегодня, 15:30" },
+  { id: 2, contact: "Мария Соколова", avatar: "МС", amount: 1200, type: "out", desc: "Подарок", time: "Сегодня, 12:00" },
+  { id: 3, contact: "Кирилл Федоров", avatar: "КФ", amount: 350, type: "in", desc: "Такси", time: "Вчера, 21:10" },
+  { id: 4, contact: "Анна Новикова", avatar: "АН", amount: 2000, type: "out", desc: "За билеты", time: "Вчера, 14:45" },
+  { id: 5, contact: "Дмитрий Иванов", avatar: "ДИ", amount: 150, type: "in", desc: "Кофе", time: "17 марта, 09:20" },
+  { id: 6, contact: "Мария Соколова", avatar: "МС", amount: 800, type: "in", desc: "Возврат", time: "16 марта, 18:00" },
+];
+
 const statusColors: Record<string, string> = {
   online: "bg-emerald-400",
   offline: "bg-gray-500",
@@ -101,6 +120,12 @@ export default function Index() {
   const [localMessages, setLocalMessages] = useState<Record<number, Message[]>>(chatMessages);
   const [callChatOpen, setCallChatOpen] = useState(false);
   const [callMsgInput, setCallMsgInput] = useState("");
+  const [walletBalance, setWalletBalance] = useState(4850);
+  const [walletTxns, setWalletTxns] = useState<Transaction[]>(transactions);
+  const [sendMoneyOpen, setSendMoneyOpen] = useState(false);
+  const [sendTo, setSendTo] = useState<Contact | null>(null);
+  const [sendAmount, setSendAmount] = useState("");
+  const [sendDesc, setSendDesc] = useState("");
   const [callNotification, setCallNotification] = useState<Message | null>(null);
   const notifTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const audioCtxRef = useRef<AudioContext | null>(null);
@@ -169,6 +194,26 @@ export default function Index() {
     };
   }, [callState, activeCaller?.id]);
 
+  const handleSendMoney = () => {
+    const amt = parseFloat(sendAmount);
+    if (!sendTo || !amt || amt <= 0 || amt > walletBalance) return;
+    const newTxn: Transaction = {
+      id: Date.now(),
+      contact: sendTo.name,
+      avatar: sendTo.avatar,
+      amount: amt,
+      type: "out",
+      desc: sendDesc.trim() || "Перевод",
+      time: "Только что",
+    };
+    setWalletTxns([newTxn, ...walletTxns]);
+    setWalletBalance(prev => prev - amt);
+    setSendMoneyOpen(false);
+    setSendTo(null);
+    setSendAmount("");
+    setSendDesc("");
+  };
+
   const sendMessage = () => {
     if (!msgInput.trim() || !openChat) return;
     const msgs = localMessages[openChat.id] || [];
@@ -215,6 +260,7 @@ export default function Index() {
     { id: "chats", icon: "MessageCircle", label: "Чаты" },
     { id: "calls", icon: "Video", label: "Звонки" },
     { id: "media", icon: "Image", label: "Медиа" },
+    { id: "wallet", icon: "Wallet", label: "Кошелёк" },
   ];
 
   return (
@@ -744,6 +790,166 @@ export default function Index() {
                 <p className="text-xs font-semibold text-white">Все файлы защищены</p>
                 <p className="text-[11px] text-white/40">E2E шифрование — никто кроме вас не видит медиа</p>
               </div>
+            </div>
+          </div>
+        )}
+
+        {/* WALLET TAB */}
+        {tab === "wallet" && (
+          <div className="animate-fade-in">
+            {/* Balance card */}
+            <div className="rounded-3xl p-5 mb-5 relative overflow-hidden" style={{ background: "linear-gradient(135deg, #7c3aed 0%, #ec4899 50%, #06b6d4 100%)" }}>
+              <div className="absolute inset-0 opacity-20" style={{ background: "radial-gradient(circle at 80% 20%, rgba(255,255,255,0.3) 0%, transparent 50%)" }} />
+              <div className="relative z-10">
+                <div className="flex items-center justify-between mb-1">
+                  <span className="text-xs text-white/70 font-medium">Основной баланс</span>
+                  <Icon name="Eye" size={14} className="text-white/50" />
+                </div>
+                <p className="text-3xl font-black text-white tracking-tight">{walletBalance.toLocaleString("ru-RU")} ₽</p>
+                <div className="flex items-center gap-1 mt-1">
+                  <Icon name="TrendingUp" size={11} className="text-emerald-300" />
+                  <span className="text-[11px] text-emerald-300 font-medium">+1 800 ₽ за неделю</span>
+                </div>
+                <div className="flex gap-2 mt-4">
+                  <button onClick={() => setSendMoneyOpen(true)} className="flex-1 bg-white/20 backdrop-blur-sm rounded-xl py-2.5 flex items-center justify-center gap-2 hover:bg-white/30 transition-all">
+                    <Icon name="Send" size={15} className="text-white" />
+                    <span className="text-xs font-semibold text-white">Отправить</span>
+                  </button>
+                  <button className="flex-1 bg-white/20 backdrop-blur-sm rounded-xl py-2.5 flex items-center justify-center gap-2 hover:bg-white/30 transition-all">
+                    <Icon name="Download" size={15} className="text-white" />
+                    <span className="text-xs font-semibold text-white">Пополнить</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* Quick send */}
+            <div className="mb-5">
+              <p className="text-xs text-white/40 font-semibold uppercase tracking-wider mb-3 px-1">Быстрый перевод</p>
+              <div className="flex gap-3 overflow-x-auto pb-1">
+                {contacts.filter(c => c.status !== "offline").map((c, i) => (
+                  <button
+                    key={c.id}
+                    onClick={() => { setSendTo(c); setSendMoneyOpen(true); }}
+                    className="flex flex-col items-center gap-1.5 flex-shrink-0 group"
+                  >
+                    <div className={`w-12 h-12 rounded-full bg-gradient-to-br ${avatarGrads[i % avatarGrads.length]} flex items-center justify-center text-xs font-bold text-white group-hover:scale-110 transition-transform`}>
+                      {c.avatar}
+                    </div>
+                    <span className="text-[10px] text-white/50 w-12 text-center truncate">{c.name.split(" ")[0]}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Transactions */}
+            <div>
+              <div className="flex items-center justify-between mb-3 px-1">
+                <p className="text-xs text-white/40 font-semibold uppercase tracking-wider">История</p>
+                <button className="text-xs text-purple-400 hover:text-purple-300 transition-colors">Все</button>
+              </div>
+              <div className="space-y-2">
+                {walletTxns.map((txn, i) => (
+                  <div key={txn.id} className="glass rounded-2xl p-3.5 flex items-center gap-3 animate-fade-in" style={{ animationDelay: `${i * 0.05}s` }}>
+                    <div className={`w-11 h-11 rounded-full bg-gradient-to-br ${avatarGrads[i % avatarGrads.length]} flex items-center justify-center text-xs font-bold text-white flex-shrink-0`}>
+                      {txn.avatar}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-semibold text-white">{txn.contact}</p>
+                      <p className="text-[11px] text-white/35 mt-0.5">{txn.desc} · {txn.time}</p>
+                    </div>
+                    <div className="text-right flex-shrink-0">
+                      <p className={`text-sm font-bold ${txn.type === "in" ? "text-emerald-400" : "text-white/80"}`}>
+                        {txn.type === "in" ? "+" : "−"}{txn.amount.toLocaleString("ru-RU")} ₽
+                      </p>
+                      <div className="flex items-center justify-end gap-1 mt-0.5">
+                        <Icon name="Lock" size={8} className="text-emerald-400/60" />
+                        <span className="text-[9px] text-white/25">Защищён</span>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Security notice */}
+            <div className="mt-4 glass rounded-2xl p-3 flex items-center gap-2.5">
+              <div className="w-8 h-8 rounded-lg bg-purple-500/20 flex items-center justify-center flex-shrink-0">
+                <Icon name="ShieldCheck" size={16} className="text-purple-400" />
+              </div>
+              <div>
+                <p className="text-xs font-semibold text-white">Безопасные переводы</p>
+                <p className="text-[11px] text-white/40">Все транзакции защищены сквозным шифрованием</p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Send Money Modal */}
+        {sendMoneyOpen && (
+          <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 backdrop-blur-sm" onClick={() => { setSendMoneyOpen(false); setSendTo(null); setSendAmount(""); setSendDesc(""); }}>
+            <div className="w-full max-w-lg glass-bright rounded-t-3xl p-5 pb-8 animate-fade-in" onClick={e => e.stopPropagation()}>
+              <div className="w-10 h-1 bg-white/20 rounded-full mx-auto mb-5" />
+              <h3 className="text-lg font-bold text-white mb-4">Отправить перевод</h3>
+
+              {!sendTo ? (
+                <div>
+                  <p className="text-xs text-white/40 mb-3">Выберите получателя</p>
+                  <div className="space-y-2 max-h-60 overflow-y-auto">
+                    {contacts.map((c, i) => (
+                      <button key={c.id} onClick={() => setSendTo(c)} className="w-full glass rounded-xl p-3 flex items-center gap-3 hover:bg-white/10 transition-all">
+                        <div className={`w-10 h-10 rounded-full bg-gradient-to-br ${avatarGrads[i % avatarGrads.length]} flex items-center justify-center text-xs font-bold text-white`}>
+                          {c.avatar}
+                        </div>
+                        <p className="text-sm text-white font-medium">{c.name}</p>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              ) : (
+                <div>
+                  <div className="flex items-center gap-3 glass rounded-xl p-3 mb-4">
+                    <div className={`w-10 h-10 rounded-full bg-gradient-to-br ${avatarGrads[sendTo.id % avatarGrads.length]} flex items-center justify-center text-xs font-bold text-white`}>
+                      {sendTo.avatar}
+                    </div>
+                    <div className="flex-1">
+                      <p className="text-sm text-white font-medium">{sendTo.name}</p>
+                      <p className="text-[11px] text-white/40">Получатель</p>
+                    </div>
+                    <button onClick={() => setSendTo(null)} className="text-xs text-purple-400">Изменить</button>
+                  </div>
+                  <div className="mb-3">
+                    <label className="text-xs text-white/40 mb-1.5 block">Сумма</label>
+                    <div className="relative">
+                      <input
+                        type="number"
+                        value={sendAmount}
+                        onChange={e => setSendAmount(e.target.value)}
+                        className="w-full glass rounded-xl px-4 py-3 text-xl text-white font-bold placeholder:text-white/20 outline-none border border-transparent focus:border-purple-500/50 transition-all"
+                        placeholder="0"
+                      />
+                      <span className="absolute right-4 top-1/2 -translate-y-1/2 text-white/40 text-sm font-medium">₽</span>
+                    </div>
+                    <p className="text-[11px] text-white/30 mt-1.5">Доступно: {walletBalance.toLocaleString("ru-RU")} ₽</p>
+                  </div>
+                  <div className="mb-5">
+                    <label className="text-xs text-white/40 mb-1.5 block">Комментарий</label>
+                    <input
+                      value={sendDesc}
+                      onChange={e => setSendDesc(e.target.value)}
+                      className="w-full glass rounded-xl px-4 py-2.5 text-sm text-white placeholder:text-white/20 outline-none border border-transparent focus:border-purple-500/50 transition-all"
+                      placeholder="За что перевод..."
+                    />
+                  </div>
+                  <button
+                    onClick={handleSendMoney}
+                    disabled={!sendAmount || parseFloat(sendAmount) <= 0 || parseFloat(sendAmount) > walletBalance}
+                    className="w-full btn-gradient py-3 rounded-xl text-sm font-semibold text-white disabled:opacity-30 disabled:cursor-not-allowed transition-all"
+                  >
+                    Отправить {sendAmount ? `${parseFloat(sendAmount).toLocaleString("ru-RU")} ₽` : ""}
+                  </button>
+                </div>
+              )}
             </div>
           </div>
         )}
