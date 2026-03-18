@@ -1,0 +1,19 @@
+{
+  "name": "Собеседник",
+  "short_name": "Собеседник",
+  "description": "Защищённые видеозвонки и обмен медиа со сквозным шифрованием",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0a0812",
+  "theme_color": "#a855f7",
+  "orientation": "portrait",
+  "categories": ["social", "communication"],
+  "icons": [
+    {
+      "src": "https://cdn.poehali.dev/projects/ba298506-d6b7-410f-ba54-e3f0c60304c5/files/3c8920dd-469c-410d-8ea1-785a9bbc9593.jpg",
+      "sizes": "512x512",
+      "type": "image/jpeg",
+      "purpose": "any maskable"
+    }
+  ]
+}

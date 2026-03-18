@@ -1225,8 +1225,35 @@ export default function Index() {
                 <Icon name="ChevronRight" size={14} className="text-white/20" />
               </button>
 
+              {/* Install PWA Banner */}
+              <div className="mt-5 rounded-2xl p-4 relative overflow-hidden" style={{ background: "linear-gradient(135deg, #1a0a2e 0%, #2d1060 50%, #1a0a3e 100%)" }}>
+                <div className="absolute top-0 right-0 w-24 h-24 opacity-10" style={{ background: "radial-gradient(circle, rgba(168,85,247,0.8) 0%, transparent 70%)" }} />
+                <div className="relative z-10">
+                  <div className="flex items-center gap-3 mb-3">
+                    <div className="w-11 h-11 rounded-xl overflow-hidden flex-shrink-0">
+                      <img src="https://cdn.poehali.dev/projects/ba298506-d6b7-410f-ba54-e3f0c60304c5/files/3c8920dd-469c-410d-8ea1-785a9bbc9593.jpg" alt="Собеседник" className="w-full h-full object-cover" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-bold text-white">Установить на телефон</p>
+                      <p className="text-[11px] text-white/40">Работает без интернета</p>
+                    </div>
+                  </div>
+                  <p className="text-[10px] text-white/30 mb-2">Откройте в браузере на телефоне → меню (⋮) → «Добавить на главный экран»</p>
+                  <div className="flex gap-2">
+                    <div className="flex-1 glass rounded-xl px-3 py-2 flex items-center gap-2">
+                      <Icon name="Chrome" size={14} className="text-white/40" />
+                      <span className="text-[10px] text-white/40">Chrome</span>
+                    </div>
+                    <div className="flex-1 glass rounded-xl px-3 py-2 flex items-center gap-2">
+                      <Icon name="Globe" size={14} className="text-white/40" />
+                      <span className="text-[10px] text-white/40">Safari</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
               {/* Download App Banner */}
-              <div className="mt-5 rounded-2xl p-4 relative overflow-hidden" style={{ background: "linear-gradient(135deg, #1a3a1a 0%, #0d2a0d 50%, #1a4a2a 100%)" }}>
+              <div className="mt-3 rounded-2xl p-4 relative overflow-hidden" style={{ background: "linear-gradient(135deg, #1a3a1a 0%, #0d2a0d 50%, #1a4a2a 100%)" }}>
                 <div className="absolute top-0 right-0 w-24 h-24 opacity-10" style={{ background: "radial-gradient(circle, rgba(74,222,128,0.8) 0%, transparent 70%)" }} />
                 <div className="relative z-10">
                   <div className="flex items-center gap-3 mb-3">
