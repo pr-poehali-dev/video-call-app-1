@@ -211,7 +211,7 @@ export default function Index() {
   const [adminSmsTimer, setAdminSmsTimer] = useState(0);
   const [adminLinkedPhone, setAdminLinkedPhone] = useState("");
   const smsTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const ADMIN_CODE = "admin2024";
+  const ADMIN_CODE = "Argunov110194";
 
   const emojiSets = [
     { label: "😀", name: "Смайлы", emojis: ["😀","😃","😄","😁","😆","🥹","😅","🤣","😂","🙂","😉","😊","😇","🥰","😍","🤩","😘","😗","😚","😙","🥲","😋","😛","😜","🤪","😝","🤑","🤗","🤭","🫢","🫣","🤫","🤔","🫡","🤐","🤨","😐","😑","😶","🫥","😏","😒","🙄","😬","😮‍💨","🤥","😌","😔","😪","🤤","😴","😷"] },
