@@ -127,6 +127,14 @@ export default function Index() {
   const [sendAmount, setSendAmount] = useState("");
   const [sendDesc, setSendDesc] = useState("");
   const [callNotification, setCallNotification] = useState<Message | null>(null);
+  const [profileOpen, setProfileOpen] = useState(false);
+  const [profileName, setProfileName] = useState("Ваше Имя");
+  const [profileStatus, setProfileStatus] = useState("Доступен для звонков");
+  const [profileNotifs, setProfileNotifs] = useState(true);
+  const [profileSounds, setProfileSounds] = useState(true);
+  const [profileE2E, setProfileE2E] = useState(true);
+  const [editingName, setEditingName] = useState(false);
+  const [editingStatus, setEditingStatus] = useState(false);
   const notifTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const audioCtxRef = useRef<AudioContext | null>(null);
 
@@ -284,14 +292,188 @@ export default function Index() {
             <button className="glass w-9 h-9 rounded-full flex items-center justify-center hover:glass-bright transition-all">
               <Icon name="Search" size={16} className="text-white/70" />
             </button>
-            <div className="avatar-ring">
+            <button onClick={() => setProfileOpen(true)} className="avatar-ring cursor-pointer hover:scale-105 transition-transform">
               <div className="w-9 h-9 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center text-xs font-bold text-white">
-                ВЫ
+                {profileName.split(" ").map(w => w[0]).join("").slice(0, 2).toUpperCase()}
               </div>
-            </div>
+            </button>
           </div>
         </div>
       </header>
+
+      {/* Profile Overlay */}
+      {profileOpen && (
+        <div className="fixed inset-0 z-50 flex flex-col" style={{ background: "#0a0812" }}>
+          <div className="absolute inset-0 overflow-hidden pointer-events-none">
+            <div className="orb w-[400px] h-[400px] top-[-80px] left-[50%] -translate-x-1/2 opacity-30" style={{ background: "radial-gradient(circle, rgba(168,85,247,0.6) 0%, transparent 70%)" }} />
+          </div>
+
+          {/* Profile header */}
+          <div className="relative z-10 px-4 py-3 flex items-center gap-3">
+            <button onClick={() => { setProfileOpen(false); setEditingName(false); setEditingStatus(false); }} className="w-9 h-9 rounded-full glass flex items-center justify-center">
+              <Icon name="ArrowLeft" size={16} className="text-white/70" />
+            </button>
+            <h2 className="text-lg font-bold text-white">Профиль</h2>
+          </div>
+
+          <div className="relative z-10 flex-1 overflow-y-auto px-4 pb-10">
+            {/* Avatar + Name */}
+            <div className="flex flex-col items-center pt-4 pb-6">
+              <div className="avatar-ring mb-4">
+                <div className="w-24 h-24 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center text-2xl font-black text-white">
+                  {profileName.split(" ").map(w => w[0]).join("").slice(0, 2).toUpperCase()}
+                </div>
+              </div>
+              <button className="glass px-3 py-1.5 rounded-full text-[11px] text-purple-400 mb-4 flex items-center gap-1.5 hover:bg-white/10 transition-all">
+                <Icon name="Camera" size={12} className="text-purple-400" />
+                Изменить фото
+              </button>
+
+              {editingName ? (
+                <input
+                  autoFocus
+                  value={profileName}
+                  onChange={e => setProfileName(e.target.value)}
+                  onBlur={() => setEditingName(false)}
+                  onKeyDown={e => e.key === "Enter" && setEditingName(false)}
+                  className="bg-transparent text-xl font-bold text-white text-center outline-none border-b-2 border-purple-500 pb-1 w-48"
+                />
+              ) : (
+                <button onClick={() => setEditingName(true)} className="text-xl font-bold text-white flex items-center gap-2 hover:text-purple-300 transition-colors">
+                  {profileName}
+                  <Icon name="Pencil" size={14} className="text-white/30" />
+                </button>
+              )}
+
+              {editingStatus ? (
+                <input
+                  autoFocus
+                  value={profileStatus}
+                  onChange={e => setProfileStatus(e.target.value)}
+                  onBlur={() => setEditingStatus(false)}
+                  onKeyDown={e => e.key === "Enter" && setEditingStatus(false)}
+                  className="bg-transparent text-sm text-white/60 text-center outline-none border-b border-purple-500/50 pb-0.5 mt-2 w-56"
+                />
+              ) : (
+                <button onClick={() => setEditingStatus(true)} className="text-sm text-white/50 mt-1.5 flex items-center gap-1.5 hover:text-white/70 transition-colors">
+                  {profileStatus}
+                  <Icon name="Pencil" size={10} className="text-white/25" />
+                </button>
+              )}
+            </div>
+
+            {/* Stats */}
+            <div className="grid grid-cols-3 gap-2 mb-5">
+              <div className="glass rounded-2xl p-3 text-center">
+                <p className="text-lg font-bold text-white">{contacts.length}</p>
+                <p className="text-[10px] text-white/40 mt-0.5">Контактов</p>
+              </div>
+              <div className="glass rounded-2xl p-3 text-center">
+                <p className="text-lg font-bold text-white">{callHistory.length}</p>
+                <p className="text-[10px] text-white/40 mt-0.5">Звонков</p>
+              </div>
+              <div className="glass rounded-2xl p-3 text-center">
+                <p className="text-lg font-bold text-white">{mediaItems.length}</p>
+                <p className="text-[10px] text-white/40 mt-0.5">Медиа</p>
+              </div>
+            </div>
+
+            {/* Settings */}
+            <div className="space-y-1.5">
+              <p className="text-xs text-white/40 font-semibold uppercase tracking-wider mb-2 px-1">Настройки</p>
+
+              <div className="glass rounded-2xl p-3.5 flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="w-9 h-9 rounded-xl bg-purple-500/20 flex items-center justify-center">
+                    <Icon name="Bell" size={16} className="text-purple-400" />
+                  </div>
+                  <div>
+                    <p className="text-sm text-white font-medium">Уведомления</p>
+                    <p className="text-[11px] text-white/35">Push и звуки</p>
+                  </div>
+                </div>
+                <button onClick={() => setProfileNotifs(!profileNotifs)} className={`w-11 h-6 rounded-full transition-all relative ${profileNotifs ? "bg-purple-500" : "bg-white/10"}`}>
+                  <div className={`w-5 h-5 rounded-full bg-white absolute top-0.5 transition-all ${profileNotifs ? "left-[22px]" : "left-0.5"}`} />
+                </button>
+              </div>
+
+              <div className="glass rounded-2xl p-3.5 flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="w-9 h-9 rounded-xl bg-cyan-500/20 flex items-center justify-center">
+                    <Icon name="Volume2" size={16} className="text-cyan-400" />
+                  </div>
+                  <div>
+                    <p className="text-sm text-white font-medium">Звуки в чате</p>
+                    <p className="text-[11px] text-white/35">Звук сообщений</p>
+                  </div>
+                </div>
+                <button onClick={() => setProfileSounds(!profileSounds)} className={`w-11 h-6 rounded-full transition-all relative ${profileSounds ? "bg-cyan-500" : "bg-white/10"}`}>
+                  <div className={`w-5 h-5 rounded-full bg-white absolute top-0.5 transition-all ${profileSounds ? "left-[22px]" : "left-0.5"}`} />
+                </button>
+              </div>
+
+              <div className="glass rounded-2xl p-3.5 flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="w-9 h-9 rounded-xl bg-emerald-500/20 flex items-center justify-center">
+                    <Icon name="ShieldCheck" size={16} className="text-emerald-400" />
+                  </div>
+                  <div>
+                    <p className="text-sm text-white font-medium">E2E шифрование</p>
+                    <p className="text-[11px] text-white/35">Для звонков и сообщений</p>
+                  </div>
+                </div>
+                <button onClick={() => setProfileE2E(!profileE2E)} className={`w-11 h-6 rounded-full transition-all relative ${profileE2E ? "bg-emerald-500" : "bg-white/10"}`}>
+                  <div className={`w-5 h-5 rounded-full bg-white absolute top-0.5 transition-all ${profileE2E ? "left-[22px]" : "left-0.5"}`} />
+                </button>
+              </div>
+
+              <p className="text-xs text-white/40 font-semibold uppercase tracking-wider mb-2 mt-5 px-1">Аккаунт</p>
+
+              <button className="glass rounded-2xl p-3.5 flex items-center gap-3 w-full hover:bg-white/5 transition-all">
+                <div className="w-9 h-9 rounded-xl bg-amber-500/20 flex items-center justify-center">
+                  <Icon name="HardDrive" size={16} className="text-amber-400" />
+                </div>
+                <div className="flex-1 text-left">
+                  <p className="text-sm text-white font-medium">Хранилище</p>
+                  <p className="text-[11px] text-white/35">128 МБ из 5 ГБ</p>
+                </div>
+                <Icon name="ChevronRight" size={14} className="text-white/20" />
+              </button>
+
+              <button className="glass rounded-2xl p-3.5 flex items-center gap-3 w-full hover:bg-white/5 transition-all">
+                <div className="w-9 h-9 rounded-xl bg-pink-500/20 flex items-center justify-center">
+                  <Icon name="Palette" size={16} className="text-pink-400" />
+                </div>
+                <div className="flex-1 text-left">
+                  <p className="text-sm text-white font-medium">Оформление</p>
+                  <p className="text-[11px] text-white/35">Тёмная тема</p>
+                </div>
+                <Icon name="ChevronRight" size={14} className="text-white/20" />
+              </button>
+
+              <button className="glass rounded-2xl p-3.5 flex items-center gap-3 w-full hover:bg-white/5 transition-all">
+                <div className="w-9 h-9 rounded-xl bg-blue-500/20 flex items-center justify-center">
+                  <Icon name="HelpCircle" size={16} className="text-blue-400" />
+                </div>
+                <div className="flex-1 text-left">
+                  <p className="text-sm text-white font-medium">Поддержка</p>
+                  <p className="text-[11px] text-white/35">Помощь и FAQ</p>
+                </div>
+                <Icon name="ChevronRight" size={14} className="text-white/20" />
+              </button>
+
+              <button className="glass rounded-2xl p-3.5 flex items-center gap-3 w-full hover:bg-white/5 transition-all mt-3 border border-red-500/10">
+                <div className="w-9 h-9 rounded-xl bg-red-500/15 flex items-center justify-center">
+                  <Icon name="LogOut" size={16} className="text-red-400" />
+                </div>
+                <p className="text-sm text-red-400 font-medium">Выйти из аккаунта</p>
+              </button>
+            </div>
+
+            <p className="text-center text-[10px] text-white/15 mt-6">ConnectX v1.0 · Защищено шифрованием</p>
+          </div>
+        </div>
+      )}
 
       {/* Active Call Overlay */}
       {callState === "active" && activeCaller && (
