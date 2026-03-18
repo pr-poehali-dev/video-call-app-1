@@ -126,6 +126,14 @@ export default function Index() {
   const [sendTo, setSendTo] = useState<Contact | null>(null);
   const [sendAmount, setSendAmount] = useState("");
   const [sendDesc, setSendDesc] = useState("");
+  const [balanceHidden, setBalanceHidden] = useState(false);
+  const [walletLocked, setWalletLocked] = useState(true);
+  const [walletPin, setWalletPin] = useState("1234");
+  const [pinInput, setPinInput] = useState("");
+  const [pinError, setPinError] = useState(false);
+  const [settingPin, setSettingPin] = useState(false);
+  const [newPin, setNewPin] = useState("");
+  const [confirmPin, setConfirmPin] = useState("");
   const [callNotification, setCallNotification] = useState<Message | null>(null);
   const [profileOpen, setProfileOpen] = useState(false);
   const [profileName, setProfileName] = useState("Ваше Имя");
@@ -205,6 +213,26 @@ export default function Index() {
       if (notifTimeoutRef.current) clearTimeout(notifTimeoutRef.current);
     };
   }, [callState, activeCaller?.id]);
+
+  const handlePinSubmit = () => {
+    if (pinInput === walletPin) {
+      setWalletLocked(false);
+      setPinInput("");
+      setPinError(false);
+    } else {
+      setPinError(true);
+      setPinInput("");
+      setTimeout(() => setPinError(false), 1500);
+    }
+  };
+
+  const handleSetNewPin = () => {
+    if (newPin.length < 4 || newPin !== confirmPin) return;
+    setWalletPin(newPin);
+    setNewPin("");
+    setConfirmPin("");
+    setSettingPin(false);
+  };
 
   const handleAddContact = () => {
     const name = newContactName.trim();
@@ -1087,7 +1115,75 @@ export default function Index() {
         )}
 
         {/* WALLET TAB */}
-        {tab === "wallet" && (
+        {tab === "wallet" && walletLocked && (
+          <div className="animate-fade-in flex flex-col items-center justify-center pt-16">
+            <div className="w-20 h-20 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center mb-6 glow-purple">
+              <Icon name="Lock" size={32} className="text-white" />
+            </div>
+            <h2 className="text-xl font-bold text-white mb-1">Кошелёк защищён</h2>
+            <p className="text-sm text-white/40 mb-8">Введите PIN-код для входа</p>
+
+            <div className="flex gap-3 mb-6">
+              {[0, 1, 2, 3].map(i => (
+                <div
+                  key={i}
+                  className={`w-4 h-4 rounded-full transition-all ${
+                    pinError
+                      ? "bg-red-500 scale-110"
+                      : pinInput.length > i
+                        ? "bg-gradient-to-br from-purple-400 to-pink-400 scale-110"
+                        : "bg-white/10 border border-white/20"
+                  }`}
+                />
+              ))}
+            </div>
+
+            {pinError && (
+              <p className="text-red-400 text-xs mb-4 animate-fade-in">Неверный PIN-код</p>
+            )}
+
+            <div className="grid grid-cols-3 gap-3 w-64 mb-6">
+              {[1, 2, 3, 4, 5, 6, 7, 8, 9, null, 0, "del"].map((key, i) => (
+                <button
+                  key={i}
+                  onClick={() => {
+                    if (key === null) return;
+                    if (key === "del") { setPinInput(prev => prev.slice(0, -1)); return; }
+                    const next = pinInput + key;
+                    setPinInput(next);
+                    if (next.length === 4) {
+                      setTimeout(() => {
+                        if (next === walletPin) {
+                          setWalletLocked(false);
+                          setPinInput("");
+                          setPinError(false);
+                        } else {
+                          setPinError(true);
+                          setPinInput("");
+                          setTimeout(() => setPinError(false), 1500);
+                        }
+                      }, 150);
+                    }
+                  }}
+                  disabled={key === null}
+                  className={`h-14 rounded-2xl flex items-center justify-center text-lg font-semibold transition-all ${
+                    key === null
+                      ? "opacity-0 cursor-default"
+                      : key === "del"
+                        ? "glass text-white/40 hover:text-white/70"
+                        : "glass text-white hover:bg-white/10 active:scale-95"
+                  }`}
+                >
+                  {key === "del" ? <Icon name="Delete" size={20} className="text-white/40" /> : key}
+                </button>
+              ))}
+            </div>
+
+            <p className="text-[11px] text-white/20">PIN по умолчанию: 1234</p>
+          </div>
+        )}
+
+        {tab === "wallet" && !walletLocked && (
           <div className="animate-fade-in">
             {/* Balance card */}
             <div className="rounded-3xl p-5 mb-5 relative overflow-hidden" style={{ background: "linear-gradient(135deg, #7c3aed 0%, #ec4899 50%, #06b6d4 100%)" }}>
@@ -1095,12 +1191,18 @@ export default function Index() {
               <div className="relative z-10">
                 <div className="flex items-center justify-between mb-1">
                   <span className="text-xs text-white/70 font-medium">Основной баланс</span>
-                  <Icon name="Eye" size={14} className="text-white/50" />
+                  <button onClick={() => setBalanceHidden(!balanceHidden)} className="hover:scale-110 transition-transform">
+                    <Icon name={balanceHidden ? "EyeOff" : "Eye"} size={14} className="text-white/50" />
+                  </button>
                 </div>
-                <p className="text-3xl font-black text-white tracking-tight">{walletBalance.toLocaleString("ru-RU")} ₽</p>
+                {balanceHidden ? (
+                  <p className="text-3xl font-black text-white tracking-tight">••••••</p>
+                ) : (
+                  <p className="text-3xl font-black text-white tracking-tight">{walletBalance.toLocaleString("ru-RU")} ₽</p>
+                )}
                 <div className="flex items-center gap-1 mt-1">
                   <Icon name="TrendingUp" size={11} className="text-emerald-300" />
-                  <span className="text-[11px] text-emerald-300 font-medium">+1 800 ₽ за неделю</span>
+                  <span className="text-[11px] text-emerald-300 font-medium">{balanceHidden ? "•••" : "+1 800 ₽ за неделю"}</span>
                 </div>
                 <div className="flex gap-2 mt-4">
                   <button onClick={() => setSendMoneyOpen(true)} className="flex-1 bg-white/20 backdrop-blur-sm rounded-xl py-2.5 flex items-center justify-center gap-2 hover:bg-white/30 transition-all">
@@ -1152,7 +1254,7 @@ export default function Index() {
                     </div>
                     <div className="text-right flex-shrink-0">
                       <p className={`text-sm font-bold ${txn.type === "in" ? "text-emerald-400" : "text-white/80"}`}>
-                        {txn.type === "in" ? "+" : "−"}{txn.amount.toLocaleString("ru-RU")} ₽
+                        {balanceHidden ? "•••" : `${txn.type === "in" ? "+" : "−"}${txn.amount.toLocaleString("ru-RU")} ₽`}
                       </p>
                       <div className="flex items-center justify-end gap-1 mt-0.5">
                         <Icon name="Lock" size={8} className="text-emerald-400/60" />
@@ -1164,15 +1266,97 @@ export default function Index() {
               </div>
             </div>
 
-            {/* Security notice */}
-            <div className="mt-4 glass rounded-2xl p-3 flex items-center gap-2.5">
-              <div className="w-8 h-8 rounded-lg bg-purple-500/20 flex items-center justify-center flex-shrink-0">
-                <Icon name="ShieldCheck" size={16} className="text-purple-400" />
+            {/* Wallet actions */}
+            <div className="mt-4 space-y-1.5">
+              <p className="text-xs text-white/40 font-semibold uppercase tracking-wider mb-2 px-1">Безопасность</p>
+              <button
+                onClick={() => { setWalletLocked(true); setPinInput(""); }}
+                className="glass rounded-2xl p-3.5 flex items-center gap-3 w-full hover:bg-white/5 transition-all"
+              >
+                <div className="w-9 h-9 rounded-xl bg-amber-500/20 flex items-center justify-center">
+                  <Icon name="Lock" size={16} className="text-amber-400" />
+                </div>
+                <div className="flex-1 text-left">
+                  <p className="text-sm text-white font-medium">Заблокировать</p>
+                  <p className="text-[11px] text-white/35">Закрыть кошелёк на PIN</p>
+                </div>
+                <Icon name="ChevronRight" size={14} className="text-white/20" />
+              </button>
+
+              <button
+                onClick={() => setSettingPin(true)}
+                className="glass rounded-2xl p-3.5 flex items-center gap-3 w-full hover:bg-white/5 transition-all"
+              >
+                <div className="w-9 h-9 rounded-xl bg-purple-500/20 flex items-center justify-center">
+                  <Icon name="KeyRound" size={16} className="text-purple-400" />
+                </div>
+                <div className="flex-1 text-left">
+                  <p className="text-sm text-white font-medium">Сменить PIN</p>
+                  <p className="text-[11px] text-white/35">Изменить код доступа</p>
+                </div>
+                <Icon name="ChevronRight" size={14} className="text-white/20" />
+              </button>
+
+              <div className="glass rounded-2xl p-3 flex items-center gap-2.5 mt-3">
+                <div className="w-8 h-8 rounded-lg bg-emerald-500/20 flex items-center justify-center flex-shrink-0">
+                  <Icon name="ShieldCheck" size={16} className="text-emerald-400" />
+                </div>
+                <div>
+                  <p className="text-xs font-semibold text-white">Безопасные переводы</p>
+                  <p className="text-[11px] text-white/40">Все транзакции защищены сквозным шифрованием</p>
+                </div>
               </div>
-              <div>
-                <p className="text-xs font-semibold text-white">Безопасные переводы</p>
-                <p className="text-[11px] text-white/40">Все транзакции защищены сквозным шифрованием</p>
+            </div>
+          </div>
+        )}
+
+        {/* Change PIN Modal */}
+        {settingPin && (
+          <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 backdrop-blur-sm" onClick={() => { setSettingPin(false); setNewPin(""); setConfirmPin(""); }}>
+            <div className="w-full max-w-lg glass-bright rounded-t-3xl p-5 pb-8 animate-fade-in" onClick={e => e.stopPropagation()}>
+              <div className="w-10 h-1 bg-white/20 rounded-full mx-auto mb-5" />
+              <h3 className="text-lg font-bold text-white mb-1 flex items-center gap-2">
+                <Icon name="KeyRound" size={20} className="text-purple-400" />
+                Сменить PIN-код
+              </h3>
+              <p className="text-xs text-white/40 mb-5">Новый код должен содержать 4 цифры</p>
+
+              <div className="mb-3">
+                <label className="text-xs text-white/40 mb-1.5 block">Новый PIN</label>
+                <input
+                  type="password"
+                  maxLength={4}
+                  value={newPin}
+                  onChange={e => setNewPin(e.target.value.replace(/\D/g, ""))}
+                  className="w-full glass rounded-xl px-4 py-3 text-center text-xl tracking-[0.5em] text-white font-bold placeholder:text-white/15 outline-none border border-transparent focus:border-purple-500/50 transition-all"
+                  placeholder="····"
+                />
               </div>
+              <div className="mb-5">
+                <label className="text-xs text-white/40 mb-1.5 block">Повторите PIN</label>
+                <input
+                  type="password"
+                  maxLength={4}
+                  value={confirmPin}
+                  onChange={e => setConfirmPin(e.target.value.replace(/\D/g, ""))}
+                  onKeyDown={e => e.key === "Enter" && handleSetNewPin()}
+                  className={`w-full glass rounded-xl px-4 py-3 text-center text-xl tracking-[0.5em] text-white font-bold placeholder:text-white/15 outline-none border transition-all ${
+                    confirmPin.length === 4 && confirmPin !== newPin ? "border-red-500/50" : "border-transparent focus:border-purple-500/50"
+                  }`}
+                  placeholder="····"
+                />
+                {confirmPin.length === 4 && confirmPin !== newPin && (
+                  <p className="text-red-400 text-[11px] mt-1.5 text-center">PIN-коды не совпадают</p>
+                )}
+              </div>
+
+              <button
+                onClick={handleSetNewPin}
+                disabled={newPin.length < 4 || newPin !== confirmPin}
+                className="w-full btn-gradient py-3 rounded-xl text-sm font-semibold text-white disabled:opacity-30 disabled:cursor-not-allowed transition-all"
+              >
+                Сохранить
+              </button>
             </div>
           </div>
         )}
