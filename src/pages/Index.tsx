@@ -1225,6 +1225,40 @@ export default function Index() {
                 <Icon name="ChevronRight" size={14} className="text-white/20" />
               </button>
 
+              {/* Download App Banner */}
+              <div className="mt-5 rounded-2xl p-4 relative overflow-hidden" style={{ background: "linear-gradient(135deg, #1a3a1a 0%, #0d2a0d 50%, #1a4a2a 100%)" }}>
+                <div className="absolute top-0 right-0 w-24 h-24 opacity-10" style={{ background: "radial-gradient(circle, rgba(74,222,128,0.8) 0%, transparent 70%)" }} />
+                <div className="relative z-10">
+                  <div className="flex items-center gap-3 mb-3">
+                    <div className="w-11 h-11 rounded-xl bg-black/30 flex items-center justify-center">
+                      <Icon name="Smartphone" size={20} className="text-emerald-400" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-bold text-white">Скачать приложение</p>
+                      <p className="text-[11px] text-white/40">Доступно для Android</p>
+                    </div>
+                  </div>
+                  <a
+                    href="https://play.google.com/store"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-2.5 bg-black/40 rounded-xl px-4 py-2.5 hover:bg-black/50 transition-all border border-white/10"
+                  >
+                    <svg viewBox="0 0 24 24" className="w-6 h-6 flex-shrink-0" fill="none">
+                      <path d="M3.609 1.814L13.792 12 3.61 22.186a.996.996 0 01-.61-.92V2.734a1 1 0 01.609-.92z" fill="#4285F4"/>
+                      <path d="M17.556 8.236L5.097.697a1.002 1.002 0 00-1.032.044l9.727 9.727 3.764-2.232z" fill="#EA4335"/>
+                      <path d="M17.556 15.764l-3.764-2.232-9.727 9.727a1 1 0 001.032.044l12.459-7.539z" fill="#34A853"/>
+                      <path d="M21.39 12c0-.407-.17-.787-.47-1.065L17.556 8.236l-3.764 2.232L17.556 15.764l3.365-2.699c.3-.278.469-.658.469-1.065z" fill="#FBBC04"/>
+                    </svg>
+                    <div className="flex-1">
+                      <p className="text-[9px] text-white/40 uppercase tracking-wider leading-none">Скачать в</p>
+                      <p className="text-sm font-semibold text-white leading-tight">Google Play</p>
+                    </div>
+                    <Icon name="ExternalLink" size={14} className="text-white/30" />
+                  </a>
+                </div>
+              </div>
+
               <button className="glass rounded-2xl p-3.5 flex items-center gap-3 w-full hover:bg-white/5 transition-all mt-3 border border-red-500/10">
                 <div className="w-9 h-9 rounded-xl bg-red-500/15 flex items-center justify-center">
                   <Icon name="LogOut" size={16} className="text-red-400" />
