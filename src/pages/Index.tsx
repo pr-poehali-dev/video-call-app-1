@@ -175,6 +175,11 @@ export default function Index() {
   const [ownedPacks, setOwnedPacks] = useState<Record<string, { until: string; plan: string }>>({});
   const [buyingPack, setBuyingPack] = useState<string | null>(null);
   const [adminRevenue, setAdminRevenue] = useState(0);
+  const [createPackOpen, setCreatePackOpen] = useState(false);
+  const [newPackName, setNewPackName] = useState("");
+  const [newPackStickers, setNewPackStickers] = useState<string[]>([]);
+  const [newPackColor, setNewPackColor] = useState(0);
+  const [stickerPickerOpen, setStickerPickerOpen] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
   const [recordingTime, setRecordingTime] = useState(0);
   const [playingVoice, setPlayingVoice] = useState<number | null>(null);
@@ -367,14 +372,44 @@ export default function Index() {
     return result;
   };
 
-  const stickerPacks = [
-    { id: "cute-cats", name: "Милые котики", preview: "😺😸😻😽🙀😿😾😹😼🐱", stickers: ["😺","😸","😻","😽","🙀","😿","😾","😹","😼","🐱","🐈","🐈‍⬛","🦁","🐯","🐅"], color: "from-amber-500 to-orange-500" },
-    { id: "cool-faces", name: "Дерзкие лица", preview: "😎🤑🥸🤠🥳🫠🤯🥶🥵😈", stickers: ["😎","🤑","🥸","🤠","🥳","🫠","🤯","🥶","🥵","😈","👿","🤡","👻","💀","☠️"], color: "from-purple-500 to-blue-500" },
-    { id: "love-pack", name: "Любовь Deluxe", preview: "💘💝💖💗💓💞💕💟❣️❤️‍🔥", stickers: ["💘","💝","💖","💗","💓","💞","💕","💟","❣️","❤️‍🔥","❤️‍🩹","💋","🫶","🥰","😍"], color: "from-pink-500 to-rose-500" },
-    { id: "party-vip", name: "Вечеринка VIP", preview: "🪩🎭🎪🎢🎡🎠🎰🎲🕹️🎮", stickers: ["🪩","🎭","🎪","🎢","🎡","🎠","🎰","🎲","🕹️","🎮","🎯","🎳","🎸","🥁","🎺"], color: "from-cyan-500 to-emerald-500" },
-    { id: "food-gourmet", name: "Гурман PRO", preview: "🍣🍱🥘🫕🍲🥗🧆🥙🌮🌯", stickers: ["🍣","🍱","🥘","🫕","🍲","🥗","🧆","🥙","🌮","🌯","🫔","🥟","🦞","🦐","🦑"], color: "from-orange-500 to-red-500" },
-    { id: "space-pack", name: "Космос", preview: "🚀🛸👽🌌🪐⭐🌙☄️🛰️🌍", stickers: ["🚀","🛸","👽","🌌","🪐","⭐","🌙","☄️","🛰️","🌍","🌎","🌏","🔭","👨‍🚀","👩‍🚀"], color: "from-indigo-500 to-violet-500" },
+  const packColors = [
+    "from-amber-500 to-orange-500", "from-purple-500 to-blue-500", "from-pink-500 to-rose-500",
+    "from-cyan-500 to-emerald-500", "from-orange-500 to-red-500", "from-indigo-500 to-violet-500",
+    "from-lime-500 to-green-500", "from-fuchsia-500 to-pink-500",
   ];
+
+  const [stickerPacks, setStickerPacks] = useState([
+    { id: "cute-cats", name: "Милые котики", stickers: ["😺","😸","😻","😽","🙀","😿","😾","😹","😼","🐱","🐈","🐈‍⬛","🦁","🐯","🐅"], color: "from-amber-500 to-orange-500", custom: false },
+    { id: "cool-faces", name: "Дерзкие лица", stickers: ["😎","🤑","🥸","🤠","🥳","🫠","🤯","🥶","🥵","😈","👿","🤡","👻","💀","☠️"], color: "from-purple-500 to-blue-500", custom: false },
+    { id: "love-pack", name: "Любовь Deluxe", stickers: ["💘","💝","💖","💗","💓","💞","💕","💟","❣️","❤️‍🔥","❤️‍🩹","💋","🫶","🥰","😍"], color: "from-pink-500 to-rose-500", custom: false },
+    { id: "party-vip", name: "Вечеринка VIP", stickers: ["🪩","🎭","🎪","🎢","🎡","🎠","🎰","🎲","🕹️","🎮","🎯","🎳","🎸","🥁","🎺"], color: "from-cyan-500 to-emerald-500", custom: false },
+    { id: "food-gourmet", name: "Гурман PRO", stickers: ["🍣","🍱","🥘","🫕","🍲","🥗","🧆","🥙","🌮","🌯","🫔","🥟","🦞","🦐","🦑"], color: "from-orange-500 to-red-500", custom: false },
+    { id: "space-pack", name: "Космос", stickers: ["🚀","🛸","👽","🌌","🪐","⭐","🌙","☄️","🛰️","🌍","🌎","🌏","🔭","👨‍🚀","👩‍🚀"], color: "from-indigo-500 to-violet-500", custom: false },
+  ]);
+
+  const allPickerEmojis = ["😀","😃","😄","😁","😆","😅","🤣","😂","🙂","😉","😊","😇","🥰","😍","🤩","😘","😋","😛","😜","🤪","😝","🤑","🤗","🤭","🤫","🤔","😎","🤓","🧐","🥳","🤯","🥶","🥵","😈","👿","🤡","👻","💀","☠️","👽","🤖","👾","🎃","😺","😸","😻","😽","🙀","😿","😾","🐱","🐶","🐭","🐹","🐰","🦊","🐻","🐼","🐨","🐯","🦁","🐮","🐷","🐸","🐵","🐔","🐧","🐦","🦅","🦆","🦉","🐺","🐴","🦄","🐝","🦋","🐌","🐞","🐢","🐍","🐙","🐠","🐬","🐳","🦈","💐","🌸","🌹","🌺","🌻","🌼","🌷","🪻","🌱","🌲","🌳","🍄","🌵","🍕","🍔","🍟","🌭","🍿","🍣","🍱","🍰","🧁","🍫","🍬","🍭","☕","🧋","🍺","🍷","⚽","🏀","🏈","⚾","🎾","🏐","🎱","🏓","🎯","🎳","🏆","🥇","🎸","🎹","🎺","🥁","🎮","🕹️","🎲","🎭","🎪","🎨","🧩","🪩","🚀","🛸","🛰️","🌍","🌙","⭐","☄️","🔭","💎","💰","💳","🎁","🎀","🎈","🎉","🎊","❤️","🧡","💛","💚","💙","💜","🖤","🤍","💕","💞","💓","💗","💖","💘","💝","🔥","✨","💫","⭐","🌈","☀️","🌤️","⛅","🌧️","❄️","🫶","👍","👎","✌️","🤞","🤟","🤘","👋","👏","🙌","💪"];
+
+  const handleCreatePack = () => {
+    if (!newPackName.trim() || newPackStickers.length < 3) return;
+    const newPack = {
+      id: `custom-${Date.now()}`,
+      name: newPackName.trim(),
+      stickers: [...newPackStickers],
+      color: packColors[newPackColor % packColors.length],
+      custom: true,
+    };
+    setStickerPacks(prev => [...prev, newPack]);
+    setNewPackName("");
+    setNewPackStickers([]);
+    setNewPackColor(0);
+    setCreatePackOpen(false);
+    setStickerPickerOpen(false);
+  };
+
+  const handleDeletePack = (packId: string) => {
+    setStickerPacks(prev => prev.filter(p => p.id !== packId));
+    setOwnedPacks(prev => { const n = { ...prev }; delete n[packId]; return n; });
+  };
 
   const handleBuyStickerPack = (packId: string, plan: "month" | "year") => {
     const price = plan === "month" ? 100 : 700;
@@ -1473,7 +1508,7 @@ export default function Index() {
                 </div>
               )}
 
-              {stickerTab === "stickers" && stickerShopOpen && !buyingPack && (
+              {stickerTab === "stickers" && stickerShopOpen && !buyingPack && !createPackOpen && (
                 <div className="p-2 h-52 overflow-y-auto">
                   <div className="flex items-center justify-between px-1 mb-2">
                     <button onClick={() => setStickerShopOpen(false)} className="flex items-center gap-1 text-white/40 hover:text-white/60 transition-colors">
@@ -1482,31 +1517,146 @@ export default function Index() {
                     </button>
                     <p className="text-[10px] text-white/30 font-semibold">Магазин стикеров</p>
                   </div>
+
+                  {isAdmin && (
+                    <button
+                      onClick={() => setCreatePackOpen(true)}
+                      className="w-full glass rounded-xl p-2.5 flex items-center gap-2.5 mb-2 border border-dashed border-amber-500/30 hover:bg-amber-500/5 transition-all"
+                    >
+                      <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-amber-500 to-orange-500 flex items-center justify-center text-lg flex-shrink-0">
+                        <Icon name="Plus" size={18} className="text-white" />
+                      </div>
+                      <div className="flex-1 text-left">
+                        <p className="text-xs font-semibold text-amber-400">Создать набор</p>
+                        <p className="text-[10px] text-white/30">Добавить свой стикер-пак</p>
+                      </div>
+                    </button>
+                  )}
+
                   <div className="space-y-1.5">
                     {stickerPacks.map(pack => {
                       const owned = ownedPacks[pack.id];
                       return (
-                        <button
-                          key={pack.id}
-                          onClick={() => !owned && setBuyingPack(pack.id)}
-                          className={`w-full glass rounded-xl p-2.5 flex items-center gap-2.5 transition-all ${owned ? "opacity-70" : "hover:bg-white/10"}`}
-                        >
-                          <div className={`w-10 h-10 rounded-lg bg-gradient-to-br ${pack.color} flex items-center justify-center text-lg flex-shrink-0`}>
-                            {pack.stickers[0]}
-                          </div>
-                          <div className="flex-1 text-left min-w-0">
-                            <p className="text-xs font-semibold text-white truncate">{pack.name}</p>
-                            <p className="text-[10px] text-white/30 truncate">{pack.stickers.slice(0, 6).join("")}</p>
-                          </div>
-                          {owned ? (
-                            <span className="text-[10px] text-emerald-400 flex-shrink-0">✓ до {owned.until}</span>
-                          ) : (
-                            <span className="text-[10px] text-purple-400 font-semibold flex-shrink-0">от 100 ₽</span>
+                        <div key={pack.id} className="flex items-center gap-1">
+                          <button
+                            onClick={() => !owned && setBuyingPack(pack.id)}
+                            className={`flex-1 glass rounded-xl p-2.5 flex items-center gap-2.5 transition-all ${owned ? "opacity-70" : "hover:bg-white/10"}`}
+                          >
+                            <div className={`w-10 h-10 rounded-lg bg-gradient-to-br ${pack.color} flex items-center justify-center text-lg flex-shrink-0`}>
+                              {pack.stickers[0]}
+                            </div>
+                            <div className="flex-1 text-left min-w-0">
+                              <div className="flex items-center gap-1">
+                                <p className="text-xs font-semibold text-white truncate">{pack.name}</p>
+                                {pack.custom && <span className="text-[8px] text-amber-400 bg-amber-500/15 px-1 rounded">NEW</span>}
+                              </div>
+                              <p className="text-[10px] text-white/30 truncate">{pack.stickers.slice(0, 6).join("")}</p>
+                            </div>
+                            {owned ? (
+                              <span className="text-[10px] text-emerald-400 flex-shrink-0">✓ до {owned.until}</span>
+                            ) : (
+                              <span className="text-[10px] text-purple-400 font-semibold flex-shrink-0">от 100 ₽</span>
+                            )}
+                          </button>
+                          {isAdmin && pack.custom && (
+                            <button
+                              onClick={() => handleDeletePack(pack.id)}
+                              className="w-8 h-8 rounded-lg glass flex items-center justify-center hover:bg-red-500/20 transition-all flex-shrink-0"
+                            >
+                              <Icon name="Trash2" size={12} className="text-red-400" />
+                            </button>
                           )}
-                        </button>
+                        </div>
                       );
                     })}
                   </div>
+                </div>
+              )}
+
+              {/* Create Pack Panel */}
+              {stickerTab === "stickers" && stickerShopOpen && createPackOpen && !buyingPack && (
+                <div className="p-3 h-52 overflow-y-auto">
+                  <div className="flex items-center justify-between mb-2">
+                    <button onClick={() => { setCreatePackOpen(false); setStickerPickerOpen(false); setNewPackStickers([]); setNewPackName(""); }} className="flex items-center gap-1 text-white/40 hover:text-white/60 transition-colors">
+                      <Icon name="ArrowLeft" size={12} />
+                      <span className="text-[10px]">Назад</span>
+                    </button>
+                    <p className="text-[10px] text-amber-400 font-semibold">Создать набор</p>
+                  </div>
+
+                  {!stickerPickerOpen ? (
+                    <>
+                      <input
+                        value={newPackName}
+                        onChange={e => setNewPackName(e.target.value)}
+                        className="w-full glass rounded-lg px-3 py-2 text-xs text-white placeholder:text-white/25 outline-none border border-transparent focus:border-purple-500/40 transition-all mb-2"
+                        placeholder="Название набора"
+                      />
+                      <div className="flex gap-1 mb-2">
+                        <p className="text-[10px] text-white/30 mr-1 self-center">Цвет:</p>
+                        {packColors.map((c, i) => (
+                          <button
+                            key={i}
+                            onClick={() => setNewPackColor(i)}
+                            className={`w-6 h-6 rounded-md bg-gradient-to-br ${c} transition-all ${newPackColor === i ? "ring-2 ring-white/50 scale-110" : "opacity-50 hover:opacity-80"}`}
+                          />
+                        ))}
+                      </div>
+                      <div className="glass rounded-lg p-2 mb-2 min-h-[48px]">
+                        {newPackStickers.length > 0 ? (
+                          <div className="flex flex-wrap gap-1">
+                            {newPackStickers.map((s, i) => (
+                              <button key={i} onClick={() => setNewPackStickers(prev => prev.filter((_, j) => j !== i))} className="w-8 h-8 rounded-md glass flex items-center justify-center text-lg hover:bg-red-500/20 transition-all">
+                                {s}
+                              </button>
+                            ))}
+                          </div>
+                        ) : (
+                          <p className="text-[10px] text-white/20 text-center py-2">Добавьте минимум 3 стикера</p>
+                        )}
+                      </div>
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => setStickerPickerOpen(true)}
+                          className="flex-1 glass rounded-lg py-2 text-[10px] text-purple-400 hover:bg-white/5 transition-all flex items-center justify-center gap-1"
+                        >
+                          <Icon name="Plus" size={10} className="text-purple-400" />
+                          Добавить стикеры
+                        </button>
+                        <button
+                          onClick={handleCreatePack}
+                          disabled={!newPackName.trim() || newPackStickers.length < 3}
+                          className="flex-1 btn-gradient rounded-lg py-2 text-[10px] font-semibold text-white disabled:opacity-30 transition-all"
+                        >
+                          Создать ({newPackStickers.length})
+                        </button>
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <div className="flex items-center justify-between mb-2">
+                        <button onClick={() => setStickerPickerOpen(false)} className="text-[10px] text-white/40 hover:text-white/60 transition-colors">← К набору</button>
+                        <span className="text-[10px] text-white/30">Выбрано: {newPackStickers.length}</span>
+                      </div>
+                      <div className="grid grid-cols-8 gap-0.5">
+                        {allPickerEmojis.map((emoji, i) => {
+                          const selected = newPackStickers.includes(emoji);
+                          return (
+                            <button
+                              key={i}
+                              onClick={() => {
+                                if (selected) setNewPackStickers(prev => prev.filter(s => s !== emoji));
+                                else setNewPackStickers(prev => [...prev, emoji]);
+                              }}
+                              className={`aspect-square rounded-md flex items-center justify-center text-lg transition-all ${selected ? "bg-purple-500/30 ring-1 ring-purple-400/50 scale-105" : "hover:bg-white/10"}`}
+                            >
+                              {emoji}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </>
+                  )}
                 </div>
               )}
 
