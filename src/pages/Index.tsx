@@ -165,6 +165,8 @@ export default function Index() {
   const [newAccountName, setNewAccountName] = useState("");
   const [viewingAccount, setViewingAccount] = useState<number | null>(null);
   const [viewingAccountChat, setViewingAccountChat] = useState<number | null>(null);
+  const [accountSwitcherOpen, setAccountSwitcherOpen] = useState(false);
+  const [activeAccountId, setActiveAccountId] = useState<number | null>(null);
   const notifTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const audioCtxRef = useRef<AudioContext | null>(null);
 
@@ -470,23 +472,101 @@ export default function Index() {
         <div className="flex items-center justify-between max-w-lg mx-auto">
           <div>
             <h1 className="font-display text-2xl font-black gradient-text tracking-tight">ConnectX</h1>
-            <div className="flex items-center gap-1.5 mt-0.5">
-              <Icon name="ShieldCheck" size={11} className="text-emerald-400" />
-              <span className="shimmer-text text-[11px] font-medium">Сквозное шифрование</span>
-            </div>
+            {activeAccountId !== null ? (
+              <div className="flex items-center gap-1.5 mt-0.5">
+                <Icon name="Eye" size={11} className="text-amber-400" />
+                <span className="text-[11px] font-medium text-amber-400">{linkedAccounts.find(a => a.id === activeAccountId)?.name}</span>
+              </div>
+            ) : (
+              <div className="flex items-center gap-1.5 mt-0.5">
+                <Icon name="ShieldCheck" size={11} className="text-emerald-400" />
+                <span className="shimmer-text text-[11px] font-medium">Сквозное шифрование</span>
+              </div>
+            )}
           </div>
           <div className="flex items-center gap-2">
             <button className="glass w-9 h-9 rounded-full flex items-center justify-center hover:glass-bright transition-all">
               <Icon name="Search" size={16} className="text-white/70" />
             </button>
-            <button onClick={() => setProfileOpen(true)} className="avatar-ring cursor-pointer hover:scale-105 transition-transform">
-              <div className="w-9 h-9 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center text-xs font-bold text-white">
-                {profileName.split(" ").map(w => w[0]).join("").slice(0, 2).toUpperCase()}
-              </div>
-            </button>
+            <div className="relative">
+              <button
+                onClick={() => setAccountSwitcherOpen(!accountSwitcherOpen)}
+                className="avatar-ring cursor-pointer hover:scale-105 transition-transform relative"
+              >
+                <div className={`w-9 h-9 rounded-full flex items-center justify-center text-xs font-bold text-white ${
+                  activeAccountId !== null
+                    ? `bg-gradient-to-br ${avatarGrads[(linkedAccounts.findIndex(a => a.id === activeAccountId) + 2) % avatarGrads.length]}`
+                    : "bg-gradient-to-br from-purple-500 to-pink-500"
+                }`}>
+                  {activeAccountId !== null
+                    ? (linkedAccounts.find(a => a.id === activeAccountId)?.avatar || "?")
+                    : profileName.split(" ").map(w => w[0]).join("").slice(0, 2).toUpperCase()
+                  }
+                </div>
+              </button>
+              {linkedAccounts.length > 0 && (
+                <span className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 border-2 border-[#0a0812] flex items-center justify-center">
+                  <span className="text-[7px] text-white font-bold">{linkedAccounts.length + 1}</span>
+                </span>
+              )}
+
+              {accountSwitcherOpen && (
+                <div className="absolute right-0 top-12 w-56 glass-bright rounded-2xl border border-white/10 overflow-hidden animate-scale-in z-[60]" style={{ boxShadow: "0 8px 40px rgba(0,0,0,0.6)" }}>
+                  <div className="p-2">
+                    <button
+                      onClick={() => { setActiveAccountId(null); setAccountSwitcherOpen(false); }}
+                      className={`w-full flex items-center gap-2.5 p-2.5 rounded-xl transition-all ${activeAccountId === null ? "bg-purple-500/15 border border-purple-500/30" : "hover:bg-white/5"}`}
+                    >
+                      <div className="w-8 h-8 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center text-[10px] font-bold text-white flex-shrink-0">
+                        {profileName.split(" ").map(w => w[0]).join("").slice(0, 2).toUpperCase()}
+                      </div>
+                      <div className="flex-1 text-left min-w-0">
+                        <p className="text-xs font-semibold text-white truncate">{profileName}</p>
+                        <p className="text-[10px] text-white/30">Основной</p>
+                      </div>
+                      {activeAccountId === null && <Icon name="Check" size={12} className="text-purple-400 flex-shrink-0" />}
+                    </button>
+
+                    {linkedAccounts.map((acc, i) => (
+                      <button
+                        key={acc.id}
+                        onClick={() => { setActiveAccountId(acc.id); setAccountSwitcherOpen(false); }}
+                        className={`w-full flex items-center gap-2.5 p-2.5 rounded-xl transition-all ${activeAccountId === acc.id ? "bg-purple-500/15 border border-purple-500/30" : "hover:bg-white/5"}`}
+                      >
+                        <div className={`w-8 h-8 rounded-full bg-gradient-to-br ${avatarGrads[(i + 2) % avatarGrads.length]} flex items-center justify-center text-[10px] font-bold text-white flex-shrink-0`}>
+                          {acc.avatar}
+                        </div>
+                        <div className="flex-1 text-left min-w-0">
+                          <p className="text-xs font-semibold text-white truncate">{acc.name}</p>
+                          <p className="text-[10px] text-white/30">Связанный</p>
+                        </div>
+                        {activeAccountId === acc.id && <Icon name="Check" size={12} className="text-purple-400 flex-shrink-0" />}
+                      </button>
+                    ))}
+                  </div>
+
+                  <div className="border-t border-white/5 p-2">
+                    <button
+                      onClick={() => { setAccountSwitcherOpen(false); setProfileOpen(true); }}
+                      className="w-full flex items-center gap-2.5 p-2.5 rounded-xl hover:bg-white/5 transition-all"
+                    >
+                      <div className="w-8 h-8 rounded-xl bg-white/5 flex items-center justify-center">
+                        <Icon name="Settings" size={14} className="text-white/40" />
+                      </div>
+                      <p className="text-xs text-white/50">Управление аккаунтами</p>
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
         </div>
       </header>
+
+      {/* Account switcher backdrop */}
+      {accountSwitcherOpen && (
+        <div className="fixed inset-0 z-[15]" onClick={() => setAccountSwitcherOpen(false)} />
+      )}
 
       {/* Profile Overlay */}
       {profileOpen && (
@@ -1259,64 +1339,85 @@ export default function Index() {
         )}
 
         {/* CHATS TAB */}
-        {tab === "chats" && (
-          <div className="animate-fade-in">
-            <div className="relative mb-4">
-              <Icon name="Search" size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-white/30" />
-              <input
-                className="w-full glass rounded-2xl pl-10 pr-4 py-3 text-sm text-white placeholder:text-white/30 outline-none border border-transparent focus:border-purple-500/50 transition-all"
-                placeholder="Поиск по чатам..."
-              />
-            </div>
+        {tab === "chats" && (() => {
+          const activeAcc = activeAccountId !== null ? linkedAccounts.find(a => a.id === activeAccountId) : null;
+          const displayMessages = activeAcc ? activeAcc.messages : localMessages;
+          const displayContacts = activeAcc ? contacts.slice(0, 4) : contactsList;
 
-            <div className="space-y-2">
-              {contactsList.map((c, i) => {
-                const msgs = localMessages[c.id] || [];
-                const lastMsg = msgs[msgs.length - 1];
-                const unread = c.status === "online" && !lastMsg?.own ? 1 : 0;
-                return (
-                  <div
-                    key={c.id}
-                    onClick={() => setOpenChat(c)}
-                    className="glass rounded-2xl p-3.5 flex items-center gap-3 hover:glass-bright transition-all cursor-pointer group animate-fade-in"
-                    style={{ animationDelay: `${i * 0.06}s` }}
-                  >
-                    <div className="relative flex-shrink-0">
-                      <div className={`w-12 h-12 rounded-full bg-gradient-to-br ${avatarGrads[i % avatarGrads.length]} flex items-center justify-center text-sm font-bold text-white`}>
-                        {c.avatar}
-                      </div>
-                      <span className={`absolute bottom-0 right-0 w-3 h-3 rounded-full ${statusColors[c.status]} border-2 border-[#0a0812]`} />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center justify-between">
-                        <p className="text-sm font-semibold text-white">{c.name}</p>
-                        <span className="text-[11px] text-white/30">{lastMsg?.time || ""}</span>
-                      </div>
-                      <div className="flex items-center gap-1 mt-0.5">
-                        {lastMsg?.own && <Icon name="CheckCheck" size={11} className="text-cyan-400 flex-shrink-0" />}
-                        <p className="text-xs text-white/40 truncate">
-                          {lastMsg ? (lastMsg.type === "photo" ? "📷 Фото" : lastMsg.type === "video" ? "🎬 Видео" : lastMsg.text) : "Начните диалог"}
-                        </p>
-                      </div>
-                    </div>
-                    {unread > 0 && (
-                      <div className="w-5 h-5 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center flex-shrink-0">
-                        <span className="text-[10px] text-white font-bold">{unread}</span>
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
+          return (
+            <div className="animate-fade-in">
+              {activeAcc && (
+                <div className="glass rounded-2xl p-2.5 mb-3 flex items-center gap-2.5 border border-amber-500/20">
+                  <Icon name="Eye" size={12} className="text-amber-400" />
+                  <p className="text-[11px] text-amber-400/80 flex-1">Просмотр переписки: <span className="font-semibold text-amber-300">{activeAcc.name}</span></p>
+                  <button onClick={() => setActiveAccountId(null)} className="text-[10px] text-white/40 hover:text-white/60 transition-colors">Выйти</button>
+                </div>
+              )}
 
-            <div className="mt-4 glass rounded-2xl p-3 flex items-center gap-2.5">
-              <div className="w-8 h-8 rounded-lg bg-purple-500/20 flex items-center justify-center flex-shrink-0">
-                <Icon name="Lock" size={14} className="text-purple-400" />
+              <div className="relative mb-4">
+                <Icon name="Search" size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-white/30" />
+                <input
+                  className="w-full glass rounded-2xl pl-10 pr-4 py-3 text-sm text-white placeholder:text-white/30 outline-none border border-transparent focus:border-purple-500/50 transition-all"
+                  placeholder="Поиск по чатам..."
+                />
               </div>
-              <p className="text-[11px] text-white/40">Все сообщения защищены сквозным шифрованием</p>
+
+              <div className="space-y-2">
+                {displayContacts.map((c, i) => {
+                  const msgs = displayMessages[c.id] || [];
+                  const lastMsg = msgs[msgs.length - 1];
+                  const unread = !activeAcc && c.status === "online" && !lastMsg?.own ? 1 : 0;
+                  return (
+                    <div
+                      key={c.id}
+                      onClick={() => {
+                        if (activeAcc) {
+                          setViewingAccount(activeAcc.id);
+                          setViewingAccountChat(c.id);
+                        } else {
+                          setOpenChat(c);
+                        }
+                      }}
+                      className="glass rounded-2xl p-3.5 flex items-center gap-3 hover:glass-bright transition-all cursor-pointer group animate-fade-in"
+                      style={{ animationDelay: `${i * 0.06}s` }}
+                    >
+                      <div className="relative flex-shrink-0">
+                        <div className={`w-12 h-12 rounded-full bg-gradient-to-br ${avatarGrads[i % avatarGrads.length]} flex items-center justify-center text-sm font-bold text-white`}>
+                          {c.avatar}
+                        </div>
+                        <span className={`absolute bottom-0 right-0 w-3 h-3 rounded-full ${statusColors[c.status]} border-2 border-[#0a0812]`} />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center justify-between">
+                          <p className="text-sm font-semibold text-white">{c.name}</p>
+                          <span className="text-[11px] text-white/30">{lastMsg?.time || ""}</span>
+                        </div>
+                        <div className="flex items-center gap-1 mt-0.5">
+                          {lastMsg?.own && <Icon name="CheckCheck" size={11} className="text-cyan-400 flex-shrink-0" />}
+                          <p className="text-xs text-white/40 truncate">
+                            {lastMsg ? (lastMsg.type === "photo" ? "📷 Фото" : lastMsg.type === "video" ? "🎬 Видео" : lastMsg.text) : "Начните диалог"}
+                          </p>
+                        </div>
+                      </div>
+                      {unread > 0 && (
+                        <div className="w-5 h-5 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center flex-shrink-0">
+                          <span className="text-[10px] text-white font-bold">{unread}</span>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+
+              <div className="mt-4 glass rounded-2xl p-3 flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-lg bg-purple-500/20 flex items-center justify-center flex-shrink-0">
+                  <Icon name={activeAcc ? "Eye" : "Lock"} size={14} className={activeAcc ? "text-amber-400" : "text-purple-400"} />
+                </div>
+                <p className="text-[11px] text-white/40">{activeAcc ? "Вы просматриваете чужую переписку" : "Все сообщения защищены сквозным шифрованием"}</p>
+              </div>
             </div>
-          </div>
-        )}
+          );
+        })()}
 
         {/* CALLS TAB */}
         {tab === "calls" && callState === "idle" && (
