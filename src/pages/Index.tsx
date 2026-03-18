@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import Icon from "@/components/ui/icon";
 
 type Tab = "contacts" | "chats" | "calls" | "media";
@@ -101,6 +101,50 @@ export default function Index() {
   const [localMessages, setLocalMessages] = useState<Record<number, Message[]>>(chatMessages);
   const [callChatOpen, setCallChatOpen] = useState(false);
   const [callMsgInput, setCallMsgInput] = useState("");
+  const [callNotification, setCallNotification] = useState<Message | null>(null);
+  const notifTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const incomingCallReplies = [
+    "Подожди секунду, сейчас покажу 😄",
+    "Отлично выглядишь!",
+    "Слышишь меня? Связь нормальная?",
+    "Скину фотку после звонка 📸",
+    "Классно поговорили! 🎉",
+  ];
+
+  useEffect(() => {
+    if (callState !== "active" || !activeCaller) return;
+
+    const scheduleReply = (delay: number) => {
+      notifTimeoutRef.current = setTimeout(() => {
+        const randomText = incomingCallReplies[Math.floor(Math.random() * incomingCallReplies.length)];
+        const newMsg: Message = {
+          id: Date.now(),
+          text: randomText,
+          time: new Date().toLocaleTimeString("ru-RU", { hour: "2-digit", minute: "2-digit" }),
+          own: false,
+        };
+
+        setLocalMessages(prev => ({
+          ...prev,
+          [activeCaller.id]: [...(prev[activeCaller.id] || []), newMsg],
+        }));
+
+        if (!callChatOpen) {
+          setCallNotification(newMsg);
+          setTimeout(() => setCallNotification(null), 4000);
+        }
+
+        scheduleReply(8000 + Math.random() * 7000);
+      }, delay);
+    };
+
+    scheduleReply(4000 + Math.random() * 3000);
+
+    return () => {
+      if (notifTimeoutRef.current) clearTimeout(notifTimeoutRef.current);
+    };
+  }, [callState, activeCaller?.id]);
 
   const sendMessage = () => {
     if (!msgInput.trim() || !openChat) return;
@@ -215,6 +259,24 @@ export default function Index() {
                 <span className="text-xs text-emerald-400 font-medium">E2E шифрование активно</span>
               </div>
             )}
+
+            {/* Incoming message notification toast */}
+            {callNotification && !callChatOpen && activeCaller && (
+              <button
+                onClick={() => { setCallChatOpen(true); setCallNotification(null); }}
+                className="absolute bottom-4 left-4 right-4 glass-bright rounded-2xl p-3 flex items-center gap-3 animate-slide-in-right cursor-pointer hover:bg-white/10 transition-all border border-purple-500/20"
+                style={{ boxShadow: "0 4px 20px rgba(168,85,247,0.3)" }}
+              >
+                <div className={`w-9 h-9 rounded-full bg-gradient-to-br ${avatarGrads[activeCaller.id % avatarGrads.length]} flex items-center justify-center text-xs font-bold text-white flex-shrink-0`}>
+                  {activeCaller.avatar}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-[11px] text-purple-300 font-semibold">{activeCaller.name.split(" ")[0]}</p>
+                  <p className="text-xs text-white/80 truncate">{callNotification.text}</p>
+                </div>
+                <Icon name="MessageCircle" size={14} className="text-purple-400 flex-shrink-0" />
+              </button>
+            )}
           </div>
 
           {/* In-call chat panel */}
@@ -277,10 +339,15 @@ export default function Index() {
                 <Icon name={micOn ? "Mic" : "MicOff"} size={22} className="text-white" />
               </button>
               <button
-                onClick={() => setCallChatOpen(!callChatOpen)}
-                className={`w-14 h-14 rounded-full flex items-center justify-center transition-all ${callChatOpen ? "bg-purple-500/60 border border-purple-400/40" : "glass-bright"}`}
+                onClick={() => { setCallChatOpen(!callChatOpen); setCallNotification(null); }}
+                className={`w-14 h-14 rounded-full flex items-center justify-center transition-all relative ${callChatOpen ? "bg-purple-500/60 border border-purple-400/40" : "glass-bright"}`}
               >
                 <Icon name="MessageCircle" size={22} className="text-white" />
+                {callNotification && !callChatOpen && (
+                  <span className="absolute -top-0.5 -right-0.5 w-4 h-4 rounded-full bg-gradient-to-br from-pink-500 to-purple-500 flex items-center justify-center online-dot">
+                    <span className="text-[8px] text-white font-bold">!</span>
+                  </span>
+                )}
               </button>
               <button
                 onClick={endCall}
