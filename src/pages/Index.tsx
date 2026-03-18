@@ -211,7 +211,8 @@ export default function Index() {
   const [adminSmsTimer, setAdminSmsTimer] = useState(0);
   const [adminLinkedPhone, setAdminLinkedPhone] = useState("");
   const smsTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const ADMIN_CODE = "Argunov110194";
+  const ADMIN_CHECK_URL = "https://functions.poehali.dev/30b92aee-1042-46e0-9a1c-605332bff5a9";
+  const [adminLoading, setAdminLoading] = useState(false);
 
   const emojiSets = [
     { label: "😀", name: "Смайлы", emojis: ["😀","😃","😄","😁","😆","🥹","😅","🤣","😂","🙂","😉","😊","😇","🥰","😍","🤩","😘","😗","😚","😙","🥲","😋","😛","😜","🤪","😝","🤑","🤗","🤭","🫢","🫣","🤫","🤔","🫡","🤐","🤨","😐","😑","😶","🫥","😏","😒","🙄","😬","😮‍💨","🤥","😌","😔","😪","🤤","😴","😷"] },
@@ -535,15 +536,30 @@ export default function Index() {
     return r;
   };
 
-  const handleAdminStep1 = () => {
-    if (adminPassword !== ADMIN_CODE) {
+  const handleAdminStep1 = async () => {
+    if (!adminPassword.trim()) return;
+    setAdminLoading(true);
+    try {
+      const res = await fetch(ADMIN_CHECK_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ code: adminPassword }),
+      });
+      const data = await res.json();
+      if (data.valid) {
+        setAdminError(false);
+        setAdminStep(2);
+      } else {
+        setAdminError(true);
+        setAdminPassword("");
+        setTimeout(() => setAdminError(false), 2000);
+      }
+    } catch {
       setAdminError(true);
       setAdminPassword("");
       setTimeout(() => setAdminError(false), 2000);
-      return;
     }
-    setAdminError(false);
-    setAdminStep(2);
+    setAdminLoading(false);
   };
 
   const handleSendSms = () => {
@@ -860,11 +876,16 @@ export default function Index() {
                 </div>
                 <button
                   onClick={handleAdminStep1}
-                  disabled={!adminPassword.trim()}
-                  className="w-full py-3 rounded-xl text-sm font-semibold text-white disabled:opacity-30 transition-all"
+                  disabled={!adminPassword.trim() || adminLoading}
+                  className="w-full py-3 rounded-xl text-sm font-semibold text-white disabled:opacity-30 transition-all flex items-center justify-center gap-2"
                   style={{ background: "linear-gradient(135deg, #f59e0b, #ea580c)" }}
                 >
-                  Далее
+                  {adminLoading ? (
+                    <>
+                      <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                      Проверка...
+                    </>
+                  ) : "Далее"}
                 </button>
               </div>
             )}
