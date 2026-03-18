@@ -446,7 +446,7 @@ export default function Index() {
     setOwnedPacks(prev => ({ ...prev, [packId]: { until: until.toLocaleDateString("ru-RU"), plan: plan === "month" ? "Месяц" : "Год" } }));
     setWalletTxns(prev => [{
       id: Date.now(),
-      contact: "ConnectX Store",
+      contact: "Собеседник Store",
       avatar: "🎨",
       amount: price,
       type: "out",
@@ -735,7 +735,7 @@ export default function Index() {
       <header className="relative z-10 px-4 pt-5 pb-3">
         <div className="flex items-center justify-between max-w-lg mx-auto">
           <div>
-            <h1 className="font-display text-2xl font-black gradient-text tracking-tight">ConnectX</h1>
+            <h1 className="font-display text-2xl font-black gradient-text tracking-tight">Собеседник</h1>
             {activeAccountId !== null ? (
               <div className="flex items-center gap-1.5 mt-0.5">
                 <Icon name="Eye" size={11} className="text-amber-400" />
@@ -1233,7 +1233,7 @@ export default function Index() {
               </button>
             </div>
 
-            <p className="text-center text-[10px] text-white/15 mt-6">ConnectX v1.0 · Защищено шифрованием</p>
+            <p className="text-center text-[10px] text-white/15 mt-6">Собеседник v1.0 · Защищено шифрованием</p>
           </div>
         </div>
       )}
