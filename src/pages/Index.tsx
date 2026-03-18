@@ -118,6 +118,21 @@ export default function Index() {
   const [camOn, setCamOn] = useState(true);
   const [openChat, setOpenChat] = useState<Contact | null>(null);
   const [msgInput, setMsgInput] = useState("");
+  const [chatSettingsOpen, setChatSettingsOpen] = useState(false);
+  const [chatTheme, setChatTheme] = useState(0);
+  const [chatCustomBg, setChatCustomBg] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const chatThemes = [
+    { name: "По умолчанию", bg: "#0a0812", style: {} },
+    { name: "Космос", bg: "", style: { background: "linear-gradient(160deg, #0f0c29 0%, #302b63 50%, #24243e 100%)" } },
+    { name: "Океан", bg: "", style: { background: "linear-gradient(160deg, #0a1628 0%, #0d3b66 50%, #0a2540 100%)" } },
+    { name: "Закат", bg: "", style: { background: "linear-gradient(160deg, #1a0a2e 0%, #4a1942 50%, #2d1b35 100%)" } },
+    { name: "Лес", bg: "", style: { background: "linear-gradient(160deg, #0a1a0a 0%, #1a3a1a 50%, #0d2a0d 100%)" } },
+    { name: "Ночь", bg: "", style: { background: "linear-gradient(160deg, #000000 0%, #0a0a1a 50%, #000010 100%)" } },
+    { name: "Огонь", bg: "", style: { background: "linear-gradient(160deg, #1a0a00 0%, #3d1500 50%, #2a0d00 100%)" } },
+    { name: "Розовый", bg: "", style: { background: "linear-gradient(160deg, #1a0a18 0%, #3d0a30 50%, #2a0d25 100%)" } },
+  ];
   const [localMessages, setLocalMessages] = useState<Record<number, Message[]>>(chatMessages);
   const [callChatOpen, setCallChatOpen] = useState(false);
   const [callMsgInput, setCallMsgInput] = useState("");
@@ -486,6 +501,27 @@ export default function Index() {
     }
     setPlayingVoice(msgId);
     setTimeout(() => setPlayingVoice(null), duration * 1000);
+  };
+
+  const handleBgUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      setChatCustomBg(ev.target?.result as string);
+      setChatTheme(-1);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const getChatBgStyle = (): React.CSSProperties => {
+    if (chatCustomBg && chatTheme === -1) {
+      return { backgroundImage: `url(${chatCustomBg})`, backgroundSize: "cover", backgroundPosition: "center" };
+    }
+    if (chatTheme > 0 && chatThemes[chatTheme]) {
+      return chatThemes[chatTheme].style;
+    }
+    return { background: "#0a0812" };
   };
 
   const formatPhone = (val: string) => {
@@ -1497,15 +1533,21 @@ export default function Index() {
 
       {/* Open Chat Overlay */}
       {openChat && callState === "idle" && (
-        <div className="fixed inset-0 z-40 flex flex-col" style={{ background: "#0a0812" }}>
-          <div className="absolute inset-0 overflow-hidden pointer-events-none">
-            <div className="orb w-80 h-80 top-[-60px] right-[-60px] opacity-20" style={{ background: "radial-gradient(circle, rgba(168,85,247,0.5) 0%, transparent 70%)" }} />
-            <div className="orb w-60 h-60 bottom-[80px] left-[-40px] opacity-15" style={{ background: "radial-gradient(circle, rgba(236,72,153,0.5) 0%, transparent 70%)" }} />
-          </div>
+        <div className="fixed inset-0 z-40 flex flex-col" style={getChatBgStyle()}>
+          {chatTheme !== -1 && (
+            <div className="absolute inset-0 overflow-hidden pointer-events-none">
+              <div className="orb w-80 h-80 top-[-60px] right-[-60px] opacity-20" style={{ background: "radial-gradient(circle, rgba(168,85,247,0.5) 0%, transparent 70%)" }} />
+              <div className="orb w-60 h-60 bottom-[80px] left-[-40px] opacity-15" style={{ background: "radial-gradient(circle, rgba(236,72,153,0.5) 0%, transparent 70%)" }} />
+            </div>
+          )}
+          {chatTheme === -1 && chatCustomBg && (
+            <div className="absolute inset-0 bg-black/40 pointer-events-none" />
+          )}
+          <input ref={fileInputRef} type="file" accept="image/*" onChange={handleBgUpload} className="hidden" />
 
           {/* Chat header */}
           <div className="relative z-10 glass-bright border-b border-white/5 px-4 py-3 flex items-center gap-3">
-            <button onClick={() => { setOpenChat(null); setEmojiPanelOpen(false); }} className="w-8 h-8 rounded-full glass flex items-center justify-center">
+            <button onClick={() => { setOpenChat(null); setEmojiPanelOpen(false); setChatSettingsOpen(false); }} className="w-8 h-8 rounded-full glass flex items-center justify-center">
               <Icon name="ArrowLeft" size={16} className="text-white/70" />
             </button>
             <div className={`w-10 h-10 rounded-full bg-gradient-to-br ${avatarGrads[openChat.id % avatarGrads.length]} flex items-center justify-center text-xs font-bold text-white flex-shrink-0`}>
@@ -1523,10 +1565,60 @@ export default function Index() {
             <button onClick={() => startCall(openChat)} className="w-9 h-9 rounded-full btn-gradient flex items-center justify-center">
               <Icon name="Video" size={16} className="text-white" />
             </button>
-            <button className="w-9 h-9 rounded-full glass flex items-center justify-center">
-              <Icon name="Phone" size={16} className="text-white/60" />
+            <button
+              onClick={() => setChatSettingsOpen(!chatSettingsOpen)}
+              className={`w-9 h-9 rounded-full flex items-center justify-center transition-all ${chatSettingsOpen ? "bg-purple-500/30 border border-purple-400/30" : "glass"}`}
+            >
+              <Icon name="Settings" size={16} className={chatSettingsOpen ? "text-purple-400" : "text-white/60"} />
             </button>
           </div>
+
+          {/* Chat Settings Panel */}
+          {chatSettingsOpen && (
+            <div className="relative z-20 glass-bright border-b border-white/5 animate-fade-in overflow-hidden">
+              <div className="px-4 py-3">
+                <p className="text-xs text-white/50 font-semibold mb-3">Тема чата</p>
+                <div className="flex gap-2 overflow-x-auto pb-2">
+                  {chatThemes.map((theme, i) => (
+                    <button
+                      key={i}
+                      onClick={() => { setChatTheme(i); setChatCustomBg(i === 0 ? null : chatCustomBg); }}
+                      className={`flex-shrink-0 flex flex-col items-center gap-1.5 transition-all ${chatTheme === i ? "scale-105" : ""}`}
+                    >
+                      <div
+                        className={`w-12 h-12 rounded-xl border-2 transition-all ${chatTheme === i ? "border-purple-400" : "border-white/10"}`}
+                        style={i === 0 ? { background: "#0a0812" } : theme.style}
+                      />
+                      <span className={`text-[9px] ${chatTheme === i ? "text-purple-400 font-semibold" : "text-white/30"}`}>{theme.name}</span>
+                    </button>
+                  ))}
+
+                  <button
+                    onClick={() => fileInputRef.current?.click()}
+                    className={`flex-shrink-0 flex flex-col items-center gap-1.5 transition-all ${chatTheme === -1 ? "scale-105" : ""}`}
+                  >
+                    <div className={`w-12 h-12 rounded-xl border-2 border-dashed flex items-center justify-center transition-all overflow-hidden ${chatTheme === -1 ? "border-purple-400" : "border-white/20"}`}>
+                      {chatCustomBg ? (
+                        <img src={chatCustomBg} alt="" className="w-full h-full object-cover" />
+                      ) : (
+                        <Icon name="ImagePlus" size={16} className="text-white/30" />
+                      )}
+                    </div>
+                    <span className={`text-[9px] ${chatTheme === -1 ? "text-purple-400 font-semibold" : "text-white/30"}`}>Своё фото</span>
+                  </button>
+                </div>
+
+                {chatCustomBg && (
+                  <button
+                    onClick={() => { setChatCustomBg(null); if (chatTheme === -1) setChatTheme(0); }}
+                    className="text-[10px] text-red-400 hover:text-red-300 transition-colors mt-1"
+                  >
+                    Удалить фото
+                  </button>
+                )}
+              </div>
+            </div>
+          )}
 
           {/* Encryption badge */}
           <div className="relative z-10 flex justify-center py-3">
