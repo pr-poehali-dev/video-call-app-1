@@ -188,6 +188,14 @@ export default function Index() {
   const [adminLoginOpen, setAdminLoginOpen] = useState(false);
   const [adminPassword, setAdminPassword] = useState("");
   const [adminError, setAdminError] = useState(false);
+  const [adminStep, setAdminStep] = useState<1 | 2 | 3>(1);
+  const [adminPhone, setAdminPhone] = useState("");
+  const [adminSmsCode, setAdminSmsCode] = useState("");
+  const [adminSmsGenerated, setAdminSmsGenerated] = useState("");
+  const [adminSmsSending, setAdminSmsSending] = useState(false);
+  const [adminSmsTimer, setAdminSmsTimer] = useState(0);
+  const [adminLinkedPhone, setAdminLinkedPhone] = useState("");
+  const smsTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const ADMIN_CODE = "admin2024";
 
   const emojiSets = [
@@ -480,17 +488,69 @@ export default function Index() {
     setTimeout(() => setPlayingVoice(null), duration * 1000);
   };
 
-  const handleAdminLogin = () => {
-    if (adminPassword === ADMIN_CODE) {
-      setIsAdmin(true);
-      setAdminLoginOpen(false);
-      setAdminPassword("");
-      setAdminError(false);
-    } else {
+  const formatPhone = (val: string) => {
+    const d = val.replace(/\D/g, "").slice(0, 11);
+    if (d.length === 0) return "";
+    let r = "+7";
+    if (d.length > 1) r += " (" + d.slice(1, 4);
+    if (d.length > 4) r += ") " + d.slice(4, 7);
+    if (d.length > 7) r += "-" + d.slice(7, 9);
+    if (d.length > 9) r += "-" + d.slice(9, 11);
+    return r;
+  };
+
+  const handleAdminStep1 = () => {
+    if (adminPassword !== ADMIN_CODE) {
       setAdminError(true);
       setAdminPassword("");
       setTimeout(() => setAdminError(false), 2000);
+      return;
     }
+    setAdminError(false);
+    setAdminStep(2);
+  };
+
+  const handleSendSms = () => {
+    const digits = adminPhone.replace(/\D/g, "");
+    if (digits.length < 11) return;
+    setAdminSmsSending(true);
+    const code = String(1000 + Math.floor(Math.random() * 9000));
+    setTimeout(() => {
+      setAdminSmsGenerated(code);
+      setAdminSmsSending(false);
+      setAdminSmsTimer(60);
+      if (smsTimerRef.current) clearInterval(smsTimerRef.current);
+      smsTimerRef.current = setInterval(() => {
+        setAdminSmsTimer(prev => {
+          if (prev <= 1) { if (smsTimerRef.current) clearInterval(smsTimerRef.current); return 0; }
+          return prev - 1;
+        });
+      }, 1000);
+    }, 1500);
+  };
+
+  const handleAdminStep2 = () => {
+    if (adminSmsCode !== adminSmsGenerated) {
+      setAdminError(true);
+      setAdminSmsCode("");
+      setTimeout(() => setAdminError(false), 2000);
+      return;
+    }
+    setAdminLinkedPhone(adminPhone);
+    setIsAdmin(true);
+    setAdminLoginOpen(false);
+    resetAdminForm();
+  };
+
+  const resetAdminForm = () => {
+    setAdminPassword("");
+    setAdminPhone("");
+    setAdminSmsCode("");
+    setAdminSmsGenerated("");
+    setAdminError(false);
+    setAdminStep(1);
+    setAdminSmsTimer(0);
+    if (smsTimerRef.current) clearInterval(smsTimerRef.current);
   };
 
   const handleAddAccount = () => {
@@ -722,43 +782,146 @@ export default function Index() {
 
       {/* Admin Login Modal */}
       {adminLoginOpen && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/70 backdrop-blur-sm" onClick={() => { setAdminLoginOpen(false); setAdminPassword(""); setAdminError(false); }}>
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/70 backdrop-blur-sm" onClick={() => { setAdminLoginOpen(false); resetAdminForm(); }}>
           <div className="w-full max-w-sm mx-4 glass-bright rounded-3xl p-6 animate-scale-in" onClick={e => e.stopPropagation()}>
-            <div className="text-center mb-5">
-              <div className="w-16 h-16 rounded-full bg-gradient-to-br from-amber-500 to-orange-500 flex items-center justify-center mx-auto mb-4">
-                <Icon name="Shield" size={28} className="text-white" />
+            {/* Progress */}
+            <div className="flex items-center justify-center gap-2 mb-5">
+              {[1, 2].map(s => (
+                <div key={s} className="flex items-center gap-2">
+                  <div className={`w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-bold transition-all ${
+                    adminStep > s ? "bg-emerald-500 text-white" : adminStep === s ? "bg-gradient-to-br from-amber-500 to-orange-500 text-white" : "glass text-white/30"
+                  }`}>
+                    {adminStep > s ? <Icon name="Check" size={12} className="text-white" /> : s}
+                  </div>
+                  {s < 2 && <div className={`w-8 h-0.5 rounded-full transition-all ${adminStep > s ? "bg-emerald-500" : "bg-white/10"}`} />}
+                </div>
+              ))}
+            </div>
+
+            {/* Step 1: Password */}
+            {adminStep === 1 && (
+              <div className="animate-fade-in">
+                <div className="text-center mb-5">
+                  <div className="w-14 h-14 rounded-full bg-gradient-to-br from-amber-500 to-orange-500 flex items-center justify-center mx-auto mb-3">
+                    <Icon name="KeyRound" size={24} className="text-white" />
+                  </div>
+                  <h3 className="text-base font-bold text-white">Шаг 1: Код доступа</h3>
+                  <p className="text-xs text-white/40 mt-1">Введите секретный код администратора</p>
+                </div>
+                <div className="mb-4">
+                  <input
+                    autoFocus
+                    type="password"
+                    value={adminPassword}
+                    onChange={e => setAdminPassword(e.target.value)}
+                    onKeyDown={e => e.key === "Enter" && handleAdminStep1()}
+                    className={`w-full glass rounded-xl px-4 py-3 text-sm text-white text-center tracking-wider placeholder:text-white/20 outline-none border transition-all ${
+                      adminError ? "border-red-500/50 bg-red-500/5" : "border-transparent focus:border-amber-500/50"
+                    }`}
+                    placeholder="Код доступа"
+                  />
+                  {adminError && <p className="text-red-400 text-xs text-center mt-2 animate-fade-in">Неверный код</p>}
+                </div>
+                <button
+                  onClick={handleAdminStep1}
+                  disabled={!adminPassword.trim()}
+                  className="w-full py-3 rounded-xl text-sm font-semibold text-white disabled:opacity-30 transition-all"
+                  style={{ background: "linear-gradient(135deg, #f59e0b, #ea580c)" }}
+                >
+                  Далее
+                </button>
               </div>
-              <h3 className="text-lg font-bold text-white">Вход администратора</h3>
-              <p className="text-xs text-white/40 mt-1">Введите код доступа для управления аккаунтами</p>
-            </div>
+            )}
 
-            <div className="mb-4">
-              <input
-                autoFocus
-                type="password"
-                value={adminPassword}
-                onChange={e => setAdminPassword(e.target.value)}
-                onKeyDown={e => e.key === "Enter" && handleAdminLogin()}
-                className={`w-full glass rounded-xl px-4 py-3 text-sm text-white text-center tracking-wider placeholder:text-white/20 outline-none border transition-all ${
-                  adminError ? "border-red-500/50 bg-red-500/5" : "border-transparent focus:border-amber-500/50"
-                }`}
-                placeholder="Код доступа"
-              />
-              {adminError && (
-                <p className="text-red-400 text-xs text-center mt-2 animate-fade-in">Неверный код доступа</p>
-              )}
-            </div>
+            {/* Step 2: Phone + SMS */}
+            {adminStep === 2 && (
+              <div className="animate-fade-in">
+                <div className="text-center mb-5">
+                  <div className="w-14 h-14 rounded-full bg-gradient-to-br from-blue-500 to-cyan-500 flex items-center justify-center mx-auto mb-3">
+                    <Icon name="Smartphone" size={24} className="text-white" />
+                  </div>
+                  <h3 className="text-base font-bold text-white">Шаг 2: Подтверждение</h3>
+                  <p className="text-xs text-white/40 mt-1">Привяжите номер телефона для защиты</p>
+                </div>
 
-            <button
-              onClick={handleAdminLogin}
-              disabled={!adminPassword.trim()}
-              className="w-full py-3 rounded-xl text-sm font-semibold text-white disabled:opacity-30 disabled:cursor-not-allowed transition-all"
-              style={{ background: "linear-gradient(135deg, #f59e0b, #ea580c)" }}
-            >
-              Войти
-            </button>
+                {!adminSmsGenerated ? (
+                  <>
+                    <div className="mb-3">
+                      <label className="text-[11px] text-white/40 mb-1 block">Номер телефона</label>
+                      <input
+                        autoFocus
+                        value={formatPhone(adminPhone)}
+                        onChange={e => setAdminPhone(e.target.value)}
+                        className="w-full glass rounded-xl px-4 py-3 text-sm text-white text-center font-mono tracking-wider placeholder:text-white/20 outline-none border border-transparent focus:border-blue-500/50 transition-all"
+                        placeholder="+7 (___) ___-__-__"
+                      />
+                    </div>
+                    <button
+                      onClick={handleSendSms}
+                      disabled={adminPhone.replace(/\D/g, "").length < 11 || adminSmsSending}
+                      className="w-full py-3 rounded-xl text-sm font-semibold text-white disabled:opacity-30 transition-all flex items-center justify-center gap-2"
+                      style={{ background: "linear-gradient(135deg, #3b82f6, #06b6d4)" }}
+                    >
+                      {adminSmsSending ? (
+                        <>
+                          <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                          Отправка...
+                        </>
+                      ) : (
+                        <>Отправить SMS-код</>
+                      )}
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <div className="glass rounded-xl p-3 mb-3 flex items-center gap-2.5">
+                      <Icon name="Phone" size={14} className="text-blue-400 flex-shrink-0" />
+                      <div className="flex-1">
+                        <p className="text-xs text-white/60">Код отправлен на</p>
+                        <p className="text-sm text-white font-mono">{formatPhone(adminPhone)}</p>
+                      </div>
+                      {adminSmsTimer > 0 ? (
+                        <span className="text-[10px] text-white/30">{adminSmsTimer}с</span>
+                      ) : (
+                        <button onClick={handleSendSms} className="text-[10px] text-blue-400 hover:text-blue-300 transition-colors">Ещё раз</button>
+                      )}
+                    </div>
 
-            <p className="text-center text-[10px] text-white/20 mt-4">Доступ только для владельца</p>
+                    <div className="glass rounded-xl p-2.5 mb-3 flex items-center gap-2 border border-amber-500/20">
+                      <Icon name="Info" size={11} className="text-amber-400 flex-shrink-0" />
+                      <p className="text-[10px] text-amber-400/70">Демо-код: <span className="font-mono font-bold text-amber-300">{adminSmsGenerated}</span></p>
+                    </div>
+
+                    <div className="mb-4">
+                      <label className="text-[11px] text-white/40 mb-1 block">SMS-код</label>
+                      <input
+                        autoFocus
+                        maxLength={4}
+                        value={adminSmsCode}
+                        onChange={e => setAdminSmsCode(e.target.value.replace(/\D/g, ""))}
+                        onKeyDown={e => e.key === "Enter" && adminSmsCode.length === 4 && handleAdminStep2()}
+                        className={`w-full glass rounded-xl px-4 py-3 text-xl text-white text-center font-mono tracking-[0.5em] font-bold placeholder:text-white/15 outline-none border transition-all ${
+                          adminError ? "border-red-500/50 bg-red-500/5" : "border-transparent focus:border-blue-500/50"
+                        }`}
+                        placeholder="····"
+                      />
+                      {adminError && <p className="text-red-400 text-xs text-center mt-2 animate-fade-in">Неверный код</p>}
+                    </div>
+
+                    <button
+                      onClick={handleAdminStep2}
+                      disabled={adminSmsCode.length < 4}
+                      className="w-full py-3 rounded-xl text-sm font-semibold text-white disabled:opacity-30 transition-all"
+                      style={{ background: "linear-gradient(135deg, #3b82f6, #06b6d4)" }}
+                    >
+                      Подтвердить
+                    </button>
+                  </>
+                )}
+              </div>
+            )}
+
+            <p className="text-center text-[10px] text-white/15 mt-4">Двухфакторная аутентификация</p>
           </div>
         </div>
       )}
@@ -893,10 +1056,19 @@ export default function Index() {
 
               {isAdmin ? (
                 <>
-                  <div className="glass rounded-xl p-2.5 mb-2 flex items-center gap-2 border border-emerald-500/20">
-                    <Icon name="ShieldCheck" size={12} className="text-emerald-400" />
-                    <p className="text-[11px] text-emerald-400/80 flex-1">Режим администратора</p>
-                    <button onClick={() => setIsAdmin(false)} className="text-[10px] text-white/30 hover:text-red-400 transition-colors">Выйти</button>
+                  <div className="glass rounded-xl p-2.5 mb-2 border border-emerald-500/20">
+                    <div className="flex items-center gap-2">
+                      <Icon name="ShieldCheck" size={12} className="text-emerald-400" />
+                      <p className="text-[11px] text-emerald-400/80 flex-1">Режим администратора</p>
+                      <button onClick={() => setIsAdmin(false)} className="text-[10px] text-white/30 hover:text-red-400 transition-colors">Выйти</button>
+                    </div>
+                    {adminLinkedPhone && (
+                      <div className="flex items-center gap-1.5 mt-1.5 pl-5">
+                        <Icon name="Smartphone" size={10} className="text-blue-400" />
+                        <span className="text-[10px] text-blue-400/70 font-mono">{formatPhone(adminLinkedPhone)}</span>
+                        <Icon name="Check" size={9} className="text-emerald-400" />
+                      </div>
+                    )}
                   </div>
 
                   {adminRevenue > 0 && (
